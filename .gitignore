@@ -9,3 +9,6 @@ build/
 !tests/fixtures/*.json
 !config.yaml
 .idea/
+
+# Old skill directory
+.devin/

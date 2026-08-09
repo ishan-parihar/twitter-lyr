@@ -247,6 +247,23 @@ verify() {
     fi
 }
 
+# ── Install AI agent skills ────────────────────────────────────────────────
+install_skills() {
+    step "Installing AI agent skills..."
+    mkdir -p ~/.agents/skills
+    
+    # Try to find skills in repository
+    if [ -d ".agents/skills" ]; then
+        cp -r .agents/skills/* ~/.agents/skills/
+        info "AI agent skills installed to ~/.agents/skills/"
+    elif [ -d "$HOME/.local/share/twitter-lyr/.agents/skills" ]; then
+        cp -r "$HOME/.local/share/twitter-lyr/.agents/skills"/* ~/.agents/skills/
+        info "AI agent skills installed to ~/.agents/skills/"
+    else
+        warn "No AI agent skills found. Manual installation may be required."
+    fi
+}
+
 # ── Main ──────────────────────────────────────────────────────────────────
 main() {
     info "Installing twitter-lyr..."
@@ -264,6 +281,7 @@ main() {
     if install_uv; then
         if install_with_uv "$py"; then
             verify
+            install_skills
             return 0
         fi
         warn "uv installation failed, trying pipx..."
@@ -273,6 +291,7 @@ main() {
     if install_pipx "$py"; then
         info "pipx install complete"
         verify
+        install_skills
         return 0
     fi
 
@@ -280,6 +299,7 @@ main() {
     if install_pip "$py"; then
         info "pip install complete"
         verify
+        install_skills
         return 0
     fi
 
