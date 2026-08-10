@@ -1,5 +1,7 @@
 # twitter-lyr
 
+<!-- T2I HERO SPEC — Subject: a Twitter/X data engine — a tweet bird-motif (abstract) feeding tweets, trends, and users through an HTTPX pipeline into structured JSON for agents. Composition: tweet nodes → funnel → JSON cards. Palette: X black #000000 on dark slate → sky #38bdf8 accents. Style: dark flat vector, tweet-card motif, no text. 16:9. -->
+
 [![CI](https://github.com/ishan-parihar/twitter-lyr/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/ishan-parihar/twitter-lyr/actions/workflows/ci.yml)
 [![PyPI version](https://badge.fury.io/py/twitter-lyr.svg)](https://pypi.org/project/twitter-lyr/)
 [![Python](https://img.shields.io/badge/python-%3E%3D3.10-blue.svg)](https://pypi.org/project/twitter-lyr/)
