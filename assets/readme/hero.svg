@@ -10,25 +10,10 @@
       <stop offset="50%" stop-color="#a371f7"/>
       <stop offset="100%" stop-color="#3fb950"/>
     </linearGradient>
-    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
-      <feGaussianBlur stdDeviation="4" result="blur"/>
-      <feMerge>
-        <feMergeNode in="blur"/>
-        <feMergeNode in="SourceGraphic"/>
-      </feMerge>
-    </filter>
-    <pattern id="grid" width="60" height="60" patternUnits="userSpaceOnUse">
-      <path d="M 60 0 L 0 0 0 60" fill="none" stroke="#21262d" stroke-width="0.5"/>
-    </pattern>
-    <mask id="fadeBottom">
-      <rect width="1200" height="420" fill="url(#fadeGrad)"/>
-    </mask>
-    <linearGradient id="fadeGrad" x1="0%" y1="0%" x2="0%" y2="100%">
-      <stop offset="0%" stop-color="white"/>
-      <stop offset="70%" stop-color="white"/>
-      <stop offset="100%" stop-color="transparent"/>
-    </linearGradient>
   </defs>
+
+  <title id="hero-title">twitter-lyr — Terminal-first Twitter/X CLI and MCP server</title>
+  <desc id="hero-desc">Hero illustration showing twitter-lyr CLI with terminal demo and feature cards</desc>
 
   <!-- Background -->
   <rect width="1200" height="420" fill="url(#heroBg)"/>
