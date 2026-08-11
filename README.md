@@ -5,6 +5,7 @@
 [![CI](https://github.com/ishan-parihar/twitter-lyr/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/ishan-parihar/twitter-lyr/actions/workflows/ci.yml)
 [![PyPI version](https://badge.fury.io/py/twitter-lyr.svg)](https://pypi.org/project/twitter-lyr/)
 [![Python](https://img.shields.io/badge/python-%3E%3D3.10-blue.svg)](https://pypi.org/project/twitter-lyr/)
+![LOC](https://img.shields.io/badge/LOC-13.1K-informational?style=flat-square)
 
 ![twitter-lyr hero](assets/readme/hero.svg)
 
@@ -469,3 +470,14 @@ MIT License — see [LICENSE](LICENSE) for details.
 ---
 
 *Built for developers and AI agents who want Twitter data without the noise.*
+
+---
+
+## ☕ Support & Sponsorship
+
+If you find this project useful, consider supporting ongoing development:
+
+[![Sponsor](https://img.shields.io/badge/Sponsor-GitHub%20Sponsors-ea4aaa?style=flat-square&logo=github)](https://github.com/sponsors/ishan-parihar)
+[![Donate](https://img.shields.io/badge/Donate-Razorpay-3395FF?style=flat-square)](https://rzp.io/rzp/ishan-parihar)
+
+Your support funds new features, releases, and infrastructure for the whole ecosystem.
