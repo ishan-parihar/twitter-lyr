@@ -6,6 +6,8 @@
 [![PyPI version](https://badge.fury.io/py/twitter-lyr.svg)](https://pypi.org/project/twitter-lyr/)
 [![Python](https://img.shields.io/badge/python-%3E%3D3.10-blue.svg)](https://pypi.org/project/twitter-lyr/)
 ![LOC](https://img.shields.io/badge/LOC-13.4K-informational?style=flat-square)
+![Status](https://img.shields.io/badge/Status-Active-brightgreen)
+![License](https://img.shields.io/badge/License-MIT-green)
 
 ![twitter-lyr hero](assets/readme/hero.svg)
 
