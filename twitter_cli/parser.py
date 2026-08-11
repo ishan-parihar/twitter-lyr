@@ -7,7 +7,7 @@ Converts raw GraphQL response JSON into domain model objects
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Optional  # noqa: F401 (used in # type: comments)
 
 if TYPE_CHECKING:
     from collections.abc import Callable  # noqa: F401
@@ -50,7 +50,7 @@ def _parse_int(value, default):
 
 
 def _extract_cursor(content):
-    # type: (Dict[str, Any]) -> Optional[str]
+    # type: (dict[str, Any]) -> Optional[str]
     """Extract Bottom pagination cursor from timeline content."""
     if content.get("cursorType") == "Bottom":
         return content.get("value")
@@ -61,9 +61,9 @@ def _extract_cursor(content):
 
 
 def _extract_media(legacy):
-    # type: (Dict[str, Any]) -> List[TweetMedia]
+    # type: (dict[str, Any]) -> list[TweetMedia]
     """Extract media items from tweet legacy data."""
-    media = []  # type: List[TweetMedia]
+    media = []  # type: list[TweetMedia]
     for media_item in _deep_get(legacy, "extended_entities", "media") or []:
         media_type = media_item.get("type", "")
         if media_type == "photo":
@@ -93,7 +93,7 @@ def _extract_media(legacy):
 
 
 def _extract_author(user_data, user_legacy):
-    # type: (Dict[str, Any], Dict[str, Any]) -> Author
+    # type: (dict[str, Any], dict[str, Any]) -> Author
     """Extract Author from user result data."""
     user_core = user_data.get("core", {})
     return Author(
@@ -157,12 +157,12 @@ def _find_article_image_url(value):
 
 
 def _normalize_article_entity_map(entity_map):
-    # type: (Any) -> Dict[str, Any]
+    # type: (Any) -> dict[str, Any]
     """Normalize Draft.js entityMap that may arrive as dict or [{key, value}, ...]."""
     if isinstance(entity_map, dict):
         return {str(key): value for key, value in entity_map.items()}
     if isinstance(entity_map, list):
-        normalized = {}  # type: Dict[str, Any]
+        normalized = {}  # type: dict[str, Any]
         for item in entity_map:
             if not isinstance(item, dict):
                 continue
@@ -176,10 +176,10 @@ def _normalize_article_entity_map(entity_map):
 
 
 def _extract_article_media_url_map(article_results):
-    # type: (Dict[str, Any]) -> Dict[str, str]
+    # type: (dict[str, Any]) -> dict[str, str]
     """Map article media ids/keys to original image URLs when entities reference IDs only."""
-    media_url_map = {}  # type: Dict[str, str]
-    media_candidates = []  # type: List[Any]
+    media_url_map = {}  # type: dict[str, str]
+    media_candidates = []  # type: list[Any]
 
     cover_media = article_results.get("cover_media")
     if cover_media:
@@ -201,9 +201,9 @@ def _extract_article_media_url_map(article_results):
 
 
 def _extract_atomic_markdown(block, entity_map):
-    # type: (Dict[str, Any], Dict[str, Any]) -> List[str]
+    # type: (dict[str, Any], dict[str, Any]) -> list[str]
     """Extract embedded markdown/code payloads from atomic Draft.js entities."""
-    parts = []  # type: List[str]
+    parts = []  # type: list[str]
     for entity_range in block.get("entityRanges", []) or []:
         if not isinstance(entity_range, dict):
             continue
@@ -220,7 +220,7 @@ def _extract_atomic_markdown(block, entity_map):
 
 
 def _render_article_text_block(block, entity_map):
-    # type: (Dict[str, Any], Dict[str, Any]) -> str
+    # type: (dict[str, Any], dict[str, Any]) -> str
     """Render a Draft.js text block, converting inline hyperlinks to Markdown."""
     text = block.get("text", "")
     if not isinstance(text, str) or not text:
@@ -259,12 +259,7 @@ def _render_article_text_block(block, entity_map):
         # Escape markdown special chars: ] in labels and ) in URLs
         safe_label = label.replace("[", "\\[").replace("]", "\\]")
         safe_url = url.replace(")", "%29")
-        rendered = "%s[%s](%s)%s" % (
-            rendered[:offset],
-            safe_label,
-            safe_url,
-            rendered[offset + length :],
-        )
+        rendered = f"{rendered[:offset]}[{safe_label}]({safe_url}){rendered[offset + length :]}"
     return rendered
 
 
@@ -290,9 +285,9 @@ def _find_article_caption(value):
 
 
 def _extract_article_images(block, entity_map, media_url_map):
-    # type: (Dict[str, Any], Dict[str, Any], Dict[str, str]) -> List[str]
+    # type: (dict[str, Any], dict[str, Any], dict[str, str]) -> list[str]
     """Convert atomic Draft.js image entities to Markdown image lines."""
-    parts = []  # type: List[str]
+    parts = []  # type: list[str]
     for entity_range in block.get("entityRanges", []) or []:
         if not isinstance(entity_range, dict):
             continue
@@ -311,12 +306,12 @@ def _extract_article_images(block, entity_map, media_url_map):
         if not image_url:
             continue
         caption = _find_article_caption(entity) or ""
-        parts.append("![%s](%s)" % (caption, image_url))
+        parts.append(f"![{caption}]({image_url})")
     return parts
 
 
 def _parse_article(tweet_data):
-    # type: (Dict[str, Any]) -> Dict[str, Any]
+    # type: (dict[str, Any]) -> dict[str, Any]
     """Extract Twitter Article data (long-form content) from a tweet.
 
     Returns dict with 'article_title' and 'article_text' keys (None if not an article).
@@ -336,7 +331,7 @@ def _parse_article(tweet_data):
     media_url_map = _extract_article_media_url_map(article_results)
 
     # Convert draft.js blocks to Markdown
-    parts = []  # type: List[str]
+    parts = []  # type: list[str]
     ordered_counter = 0
     for block in blocks:
         block_type = block.get("type", "unstyled")  # type: str
@@ -351,20 +346,20 @@ def _parse_article(tweet_data):
         if block_type != "ordered-list-item":
             ordered_counter = 0
         if block_type == "header-one":
-            parts.append("# %s" % text)
+            parts.append(f"# {text}")
         elif block_type == "header-two":
-            parts.append("## %s" % text)
+            parts.append(f"## {text}")
         elif block_type == "header-three":
-            parts.append("### %s" % text)
+            parts.append(f"### {text}")
         elif block_type == "blockquote":
-            parts.append("> %s" % text)
+            parts.append(f"> {text}")
         elif block_type == "unordered-list-item":
-            parts.append("- %s" % text)
+            parts.append(f"- {text}")
         elif block_type == "ordered-list-item":
             ordered_counter += 1
             parts.append("%d. %s" % (ordered_counter, text))
         elif block_type == "code-block":
-            parts.append("```\n%s\n```" % text)
+            parts.append(f"```\n{text}\n```")
         else:
             parts.append(text)
 
@@ -378,7 +373,7 @@ def _parse_article(tweet_data):
 
 
 def parse_user_result(user_data):
-    # type: (Dict[str, Any]) -> Optional[UserProfile]
+    # type: (dict[str, Any]) -> Optional[UserProfile]
     """Parse a user result object into UserProfile."""
     if user_data.get("__typename") == "UserUnavailable":
         return None
@@ -415,7 +410,7 @@ def parse_user_result(user_data):
 
 
 def _unwrap_visibility(result):
-    # type: (Dict[str, Any]) -> Tuple[Dict[str, Any], bool]
+    # type: (dict[str, Any]) -> tuple[dict[str, Any], bool]
     """Unwrap TweetWithVisibilityResults, returning (inner_data, is_subscriber_only)."""
     if result.get("__typename") == "TweetWithVisibilityResults" and result.get("tweet"):
         return result["tweet"], bool(result.get("tweetInterstitial"))
@@ -423,7 +418,7 @@ def _unwrap_visibility(result):
 
 
 def parse_tweet_result(result, depth=0):
-    # type: (Dict[str, Any], int) -> Optional[Tweet]
+    # type: (dict[str, Any], int) -> Optional[Tweet]
     """Parse a single TweetResult into a Tweet dataclass."""
     if depth > 2:
         return None
@@ -503,9 +498,9 @@ def parse_tweet_result(result, depth=0):
 
 
 def parse_timeline_response(data, get_instructions):
-    # type: (Any, Callable[[Any], Any]) -> Tuple[List[Tweet], Optional[str]]
+    # type: (Any, Callable[[Any], Any]) -> tuple[list[Tweet], Optional[str]]
     """Parse timeline GraphQL response into tweets and next cursor."""
-    tweets = []  # type: List[Tweet]
+    tweets = []  # type: list[Tweet]
     next_cursor = None  # type: Optional[str]
 
     instructions = get_instructions(data)

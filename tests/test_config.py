@@ -8,15 +8,7 @@ from twitter_cli.config import DEFAULT_CONFIG, load_config
 def test_load_config_supports_block_list_yaml(tmp_path: Path) -> None:
     config_file = tmp_path / "config.yaml"
     config_file.write_text(
-        "\n".join([
-            "fetch:",
-            "  count: 25",
-            "filter:",
-            "  mode: score",
-            "  lang:",
-            "    - en",
-            "    - zh",
-        ]),
+        "fetch:\n  count: 25\nfilter:\n  mode: score\n  lang:\n    - en\n    - zh",
         encoding="utf-8",
     )
 

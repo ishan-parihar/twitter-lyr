@@ -42,7 +42,7 @@ def _normalize_date(flag_name: str, value: str | None) -> str | None:
     try:
         date.fromisoformat(text)
     except ValueError as exc:
-        raise ValueError("%s must be in YYYY-MM-DD format" % flag_name) from exc
+        raise ValueError(f"{flag_name} must be in YYYY-MM-DD format") from exc
     return text
 
 
@@ -97,18 +97,18 @@ def build_search_query(
         parts.append(query_text)
 
     if from_user:
-        parts.append("from:%s" % from_user)
+        parts.append(f"from:{from_user}")
     if to_user:
-        parts.append("to:%s" % to_user)
+        parts.append(f"to:{to_user}")
     if lang:
-        parts.append("lang:%s" % lang)
+        parts.append(f"lang:{lang}")
     if since:
-        parts.append("since:%s" % since)
+        parts.append(f"since:{since}")
     if until:
-        parts.append("until:%s" % until)
+        parts.append(f"until:{until}")
     if has:
         for item in has:
-            parts.append("filter:%s" % item.lower())
+            parts.append(f"filter:{item.lower()}")
     if exclude:
         for item in exclude:
             item = item.lower()
@@ -119,7 +119,7 @@ def build_search_query(
             elif item == "links":
                 parts.append("-filter:links")
             else:
-                parts.append("-filter:%s" % item)
+                parts.append(f"-filter:{item}")
     if min_likes is not None:
         parts.append("min_faves:%d" % min_likes)
     if min_retweets is not None:

@@ -58,7 +58,10 @@ def default_structured_format(*, as_json: bool, as_yaml: bool, as_toon: bool = F
         return None
 
     if not sys.stdout.isatty():
-        return "toon"
+        # Non-TTY (piped) output defaults to YAML so downstream tools/agents
+        # get a stable, universally parseable format; TOON is opt-in via
+        # `--toon` or the explicit `--format toon` flag.
+        return "yaml"
     return None
 
 

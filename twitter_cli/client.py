@@ -12,7 +12,12 @@ import random
 import time
 import urllib.parse
 from collections.abc import Callable
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, cast
+from typing import (  # noqa: F401 (used in # type: comments)  # noqa: F401 (used in # type: comments)
+    TYPE_CHECKING,
+    Any,
+    Optional,
+    cast,
+)
 
 import bs4
 from curl_cffi import requests as _cffi_requests
@@ -59,7 +64,6 @@ from .parser import (
 )
 
 if TYPE_CHECKING:
-    from typing import Dict, List, Optional, Set, Tuple  # noqa: F401
 
     from .models import Tweet  # noqa: F401
 
@@ -125,7 +129,7 @@ def _get_cffi_session():
 
 
 def _url_fetch(url, headers=None):
-    # type: (str, Optional[Dict[str, str]]) -> str
+    # type: (str, Optional[dict[str, str]]) -> str
     """URL fetch using curl_cffi for proper TLS fingerprint."""
     session = _get_cffi_session()
     resp = session.get(url, headers=headers or {}, timeout=30)
@@ -140,7 +144,7 @@ class TwitterClient:
     """Twitter GraphQL API client using cookie authentication."""
 
     def __init__(self, auth_token, ct0, rate_limit_config=None, cookie_string=None):
-        # type: (str, str, Optional[Dict[str, Any]], Optional[str]) -> None
+        # type: (str, str, Optional[dict[str, Any]], Optional[str]) -> None
         self._auth_token = auth_token
         self._ct0 = ct0
         self._cookie_string = cookie_string  # Full browser cookie string
@@ -185,7 +189,7 @@ class TwitterClient:
         )
 
     def fetch_bookmarks(self, count=50):
-        # type: (int) -> List[Tweet]
+        # type: (int) -> list[Tweet]
         """Fetch bookmarked tweets."""
 
         def get_instructions(data):
@@ -200,14 +204,14 @@ class TwitterClient:
         return self._fetch_timeline("Bookmarks", count, get_instructions)
 
     def fetch_bookmark_folders(self):
-        # type: () -> List[BookmarkFolder]
+        # type: () -> list[BookmarkFolder]
         """Fetch all bookmark folders with pagination."""
-        folders = []  # type: List[BookmarkFolder]
+        folders = []  # type: list[BookmarkFolder]
         cursor = None  # type: Optional[str]
         max_pages = 10
 
         for _ in range(max_pages):
-            variables = {}  # type: Dict[str, Any]
+            variables = {}  # type: dict[str, Any]
             if cursor:
                 variables["cursor"] = cursor
 
@@ -237,7 +241,7 @@ class TwitterClient:
         return folders
 
     def fetch_bookmark_folder_timeline(self, folder_id, count=50):
-        # type: (str, int) -> List[Tweet]
+        # type: (str, int) -> list[Tweet]
         """Fetch tweets from a bookmark folder."""
 
         def get_instructions(data):
@@ -296,7 +300,7 @@ class TwitterClient:
         data = self._graphql_get("UserByScreenName", variables, features)
         result = _deep_get(data, "data", "user", "result")
         if not result:
-            raise NotFoundError("User @%s not found" % screen_name)
+            raise NotFoundError(f"User @{screen_name} not found")
 
         legacy = result.get("legacy", {})
         core = result.get("core", {})
@@ -319,7 +323,7 @@ class TwitterClient:
         )
 
     def fetch_user_tweets(self, user_id, count=20):
-        # type: (str, int) -> List[Tweet]
+        # type: (str, int) -> list[Tweet]
         """Fetch tweets posted by a user."""
         return self._fetch_timeline(
             "UserTweets",
@@ -340,7 +344,7 @@ class TwitterClient:
         )
 
     def fetch_user_likes(self, user_id, count=20):
-        # type: (str, int) -> List[Tweet]
+        # type: (str, int) -> list[Tweet]
         """Fetch tweets liked by a user."""
 
         def get_likes_instructions(data):
@@ -371,7 +375,7 @@ class TwitterClient:
         )
 
     def fetch_search(self, query, count=20, product="Top"):
-        # type: (str, int, str) -> List[Tweet]
+        # type: (str, int, str) -> list[Tweet]
         """Search tweets by query.
 
         Args:
@@ -401,7 +405,7 @@ class TwitterClient:
         )
 
     def fetch_tweet_detail(self, tweet_id, count=20):
-        # type: (str, int) -> List[Tweet]
+        # type: (str, int) -> list[Tweet]
         """Fetch a tweet and its conversation thread (replies)."""
         return self._fetch_timeline(
             "TweetDetail",
@@ -462,11 +466,11 @@ class TwitterClient:
 
         result = _deep_get(data, "data", "tweetResult", "result")
         if not result:
-            raise NotFoundError("Article not found: tweet_id=%s" % tweet_id)
+            raise NotFoundError(f"Article not found: tweet_id={tweet_id}")
 
         tweet = parse_tweet_result(result)
         if tweet is None or (tweet.article_title is None and tweet.article_text is None):
-            raise NotFoundError("Tweet %s has no article content" % tweet_id)
+            raise NotFoundError(f"Tweet {tweet_id} has no article content")
 
         logger.info("fetch_article: tweet_id=%s", tweet_id)
         return tweet
@@ -487,7 +491,7 @@ class TwitterClient:
         )
 
     def fetch_followers(self, user_id, count=20):
-        # type: (str, int) -> List[UserProfile]
+        # type: (str, int) -> list[UserProfile]
         """Fetch followers of a user."""
         return self._fetch_user_list(
             "Followers",
@@ -500,7 +504,7 @@ class TwitterClient:
         )
 
     def fetch_following(self, user_id, count=20):
-        # type: (str, int) -> List[UserProfile]
+        # type: (str, int) -> list[UserProfile]
         """Fetch users that a user is following."""
         return self._fetch_user_list(
             "Following",
@@ -557,7 +561,7 @@ class TwitterClient:
         processing to complete before returning.
         """
         if not os.path.isfile(file_path):
-            raise MediaUploadError("File not found: %s" % file_path)
+            raise MediaUploadError(f"File not found: {file_path}")
 
         file_size = os.path.getsize(file_path)
         media_type = mimetypes.guess_type(file_path)[0] or ""
@@ -567,8 +571,7 @@ class TwitterClient:
         max_size = self._MAX_VIDEO_SIZE if is_video else self._MAX_IMAGE_SIZE
         if file_size > max_size:
             raise MediaUploadError(
-                "File too large: %.1f MB (max %.0f MB for %s)"
-                % (
+                "File too large: {:.1f} MB (max {:.0f} MB for {})".format(
                     file_size / (1024 * 1024),
                     max_size / (1024 * 1024),
                     "video" if is_video else "image",
@@ -578,7 +581,7 @@ class TwitterClient:
         if media_type not in self._ALL_SUPPORTED_TYPES:
             supported = ", ".join(sorted(self._ALL_SUPPORTED_TYPES))
             raise MediaUploadError(
-                "Unsupported image format: %s (supported: %s)" % (media_type, supported)
+                f"Unsupported image format: {media_type} (supported: {supported})"
             )
 
         # Determine media category
@@ -605,7 +608,7 @@ class TwitterClient:
         try:
             init_result = json.loads(resp.text)
         except (json.JSONDecodeError, ValueError):
-            raise MediaUploadError("INIT returned invalid JSON")
+            raise MediaUploadError("INIT returned invalid JSON") from None
         media_id = init_result.get("media_id_string", "")
         if not media_id:
             raise MediaUploadError("INIT did not return media_id")
@@ -721,8 +724,7 @@ class TwitterClient:
             if state == "failed":
                 error = processing.get("error", {})
                 raise MediaUploadError(
-                    "Media processing failed: %s (code %s)"
-                    % (error.get("message", "Unknown error"), error.get("code", "N/A"))
+                    "Media processing failed: {} (code {})".format(error.get("message", "Unknown error"), error.get("code", "N/A"))
                 )
 
             # Wait before next check
@@ -734,7 +736,7 @@ class TwitterClient:
         return media_id
 
     def check_media_status(self, media_id):
-        # type: (str) -> Dict[str, Any]
+        # type: (str) -> dict[str, Any]
         """Check media processing status.
 
         Returns a dict with state, progress_percent, and optional error info.
@@ -754,7 +756,7 @@ class TwitterClient:
         try:
             status = json.loads(resp.text)
         except (json.JSONDecodeError, ValueError):
-            raise MediaUploadError("Media STATUS returned invalid JSON")
+            raise MediaUploadError("Media STATUS returned invalid JSON") from None
 
         processing = status.get("processing_info")
         if not processing:
@@ -769,7 +771,7 @@ class TwitterClient:
         }
 
     def create_tweet(self, text, reply_to_id=None, media_ids=None):
-        # type: (str, Optional[str], Optional[List[str]]) -> str
+        # type: (str, Optional[str], Optional[list[str]]) -> str
         """Post a new tweet.  Returns the new tweet ID.
 
         Args:
@@ -785,7 +787,7 @@ class TwitterClient:
             "media": {"media_entities": media_entities, "possibly_sensitive": False},
             "semantic_annotation_ids": [],
             "dark_request": False,
-        }  # type: Dict[str, Any]
+        }  # type: dict[str, Any]
         if reply_to_id:
             variables["reply"] = {
                 "in_reply_to_tweet_id": reply_to_id,
@@ -904,7 +906,7 @@ class TwitterClient:
         raise TwitterAPIError(0, "Failed to fetch current user info")
 
     def quote_tweet(self, tweet_id, text, media_ids=None):
-        # type: (str, str, Optional[List[str]]) -> str
+        # type: (str, str, Optional[list[str]]) -> str
         """Quote-tweet a tweet.  Returns the new tweet ID.
 
         Args:
@@ -917,7 +919,7 @@ class TwitterClient:
             media_entities = [{"media_id": mid, "tagged_users": []} for mid in media_ids]
         variables = {
             "tweet_text": text,
-            "attachment_url": "https://x.com/i/status/%s" % tweet_id,
+            "attachment_url": f"https://x.com/i/status/{tweet_id}",
             "media": {"media_entities": media_entities, "possibly_sensitive": False},
             "semantic_annotation_ids": [],
             "dark_request": False,
@@ -960,7 +962,7 @@ class TwitterClient:
     # ── Direct Messages (DMs) ────────────────────────────────────────
 
     def create_dm_conversation(self, participant_ids):
-        # type: (List[str]) -> str
+        # type: (list[str]) -> str
         """Create a DM conversation with one or more participants.
 
         Returns the conversation ID.
@@ -976,7 +978,7 @@ class TwitterClient:
         raise TwitterAPIError(0, "Failed to create DM conversation")
 
     def send_dm(self, conversation_id, text, media_ids=None):
-        # type: (str, str, Optional[List[str]]) -> str
+        # type: (str, str, Optional[list[str]]) -> str
         """Send a direct message to a conversation.
 
         Returns the message ID.
@@ -997,14 +999,14 @@ class TwitterClient:
         raise TwitterAPIError(0, "Failed to send DM")
 
     def get_dm_conversations(self, count=50):
-        # type: (int) -> List[Dict[str, Any]]
+        # type: (int) -> list[dict[str, Any]]
         """Fetch DM conversations for the authenticated user."""
-        variables = {"count": min(count, 100)}  # type: Dict[str, Any]
+        variables = {"count": min(count, 100)}  # type: dict[str, Any]
         data = self._graphql_get("GetDMConversations", variables, FEATURES)
         return _deep_get(data, "data", "dm_conversations", "conversations") or []
 
     def get_dm_messages(self, conversation_id, count=50, cursor=None):
-        # type: (str, int, Optional[str]) -> List[Dict[str, Any]]
+        # type: (str, int, Optional[str]) -> list[dict[str, Any]]
         """Fetch messages from a DM conversation."""
         variables = {"conversation_id": conversation_id, "count": min(count, 100)}
         if cursor:
@@ -1049,7 +1051,7 @@ class TwitterClient:
     # ── Polls ────────────────────────────────────────────────────────
 
     def create_poll(self, text, options, duration_minutes=1440, media_ids=None):
-        # type: (str, List[str], int, Optional[List[str]]) -> str
+        # type: (str, list[str], int, Optional[list[str]]) -> str
         """Create a tweet with a poll.
 
         Args:
@@ -1063,7 +1065,7 @@ class TwitterClient:
             raise ValueError("Poll must have 2-4 options")
         for opt in options:
             if len(opt) > 25:
-                raise ValueError("Poll option exceeds 25 characters: %s" % opt)
+                raise ValueError(f"Poll option exceeds 25 characters: {opt}")
         if not 5 <= duration_minutes <= 10080:
             raise ValueError("Poll duration must be 5-10080 minutes")
 
@@ -1126,7 +1128,7 @@ class TwitterClient:
 
         Only provided fields are updated.
         """
-        variables = {"list_id": list_id}  # type: Dict[str, Any]
+        variables = {"list_id": list_id}  # type: dict[str, Any]
         if name is not None:
             variables["name"] = name
         if description is not None:
@@ -1159,7 +1161,7 @@ class TwitterClient:
         return True
 
     def fetch_list_members(self, list_id, count=100):
-        # type: (str, int) -> List[UserProfile]
+        # type: (str, int) -> list[UserProfile]
         """Fetch members of a Twitter List."""
         return self._fetch_user_list(
             "GetListMembers",
@@ -1172,7 +1174,7 @@ class TwitterClient:
         )
 
     def fetch_list_subscriptions(self, user_id, count=100):
-        # type: (str, int) -> List[Dict[str, Any]]
+        # type: (str, int) -> list[dict[str, Any]]
         """Fetch lists a user subscribes to (follows)."""
         variables = {"userId": user_id, "count": min(count, 100)}
         data = self._graphql_get("GetListSubscriptions", variables, FEATURES)
@@ -1181,7 +1183,7 @@ class TwitterClient:
     # ── Notifications ────────────────────────────────────────────────
 
     def fetch_notifications(self, count=20, filter_type=None):
-        # type: (int, Optional[str]) -> List[Dict[str, Any]]
+        # type: (int, Optional[str]) -> list[dict[str, Any]]
         """Fetch notifications for the authenticated user.
 
         Args:
@@ -1190,7 +1192,7 @@ class TwitterClient:
         Returns:
             List of notification objects.
         """
-        variables = {"count": min(count, 100)}  # type: Dict[str, Any]
+        variables = {"count": min(count, 100)}  # type: dict[str, Any]
         if filter_type:
             variables["filter"] = filter_type
         data = self._graphql_get("GetNotifications", variables, FEATURES)
@@ -1200,7 +1202,7 @@ class TwitterClient:
     # ── Communities ──────────────────────────────────────────────────
 
     def fetch_community_tweets(self, community_id, count=20):
-        # type: (str, int) -> List[Tweet]
+        # type: (str, int) -> list[Tweet]
         """Fetch tweets from a Community."""
         return self._fetch_timeline(
             "GetCommunityTweets",
@@ -1229,7 +1231,7 @@ class TwitterClient:
     # ── Direct Messages (DMs) ────────────────────────────────────────
 
     def fetch_dm_conversations(self, count=20):
-        # type: (int) -> List[Dict[str, Any]]
+        # type: (int) -> list[dict[str, Any]]
         """Fetch DM conversations for the authenticated user."""
         variables = {"count": min(count, 50)}
         data = self._graphql_get("GetDMConversations", variables, FEATURES)
@@ -1237,7 +1239,7 @@ class TwitterClient:
         return conversations or []
 
     def fetch_dm_messages(self, conversation_id, count=50):
-        # type: (str, int) -> List[Dict[str, Any]]
+        # type: (str, int) -> list[dict[str, Any]]
         """Fetch messages from a DM conversation."""
         variables = {"conversation_id": conversation_id, "count": min(count, 100)}
         data = self._graphql_get("GetDMMessages", variables, FEATURES)
@@ -1301,7 +1303,7 @@ class TwitterClient:
         start_cursor=None,
         return_cursor=False,
     ):
-        # type: (str, int, Callable[[Any], Any], Optional[Dict[str, Any]], bool, Optional[Dict[str, Any]], bool, bool, Optional[str], bool) -> Any
+        # type: (str, int, Callable[[Any], Any], Optional[dict[str, Any]], bool, Optional[dict[str, Any]], bool, bool, Optional[str], bool) -> Any
         """Generic timeline fetcher with pagination and deduplication.
 
         Args:
@@ -1317,12 +1319,12 @@ class TwitterClient:
         # Enforce max count cap
         count = min(count, self._max_count)
 
-        tweets = []  # type: List[Tweet]
-        seen_ids = set()  # type: Set[str]
+        tweets = []  # type: list[Tweet]
+        seen_ids = set()  # type: set[str]
         cursor = start_cursor  # type: Optional[str]
         continuation_cursor = None  # type: Optional[str]
         attempts = 0
-        max_attempts = int(math.ceil(count / 20.0)) + 2
+        max_attempts = math.ceil(count / 20.0) + 2
 
         while len(tweets) < count and attempts < max_attempts:
             attempts += 1
@@ -1382,16 +1384,16 @@ class TwitterClient:
         return tweets[:count]
 
     def _fetch_user_list(self, operation_name, user_id, count, get_instructions, use_post=False):
-        # type: (str, str, int, Callable[[Any], Any], bool) -> List[UserProfile]
+        # type: (str, str, int, Callable[[Any], Any], bool) -> list[UserProfile]
         """Generic user list fetcher (for followers/following) with pagination."""
         if count <= 0:
             return []
         count = min(count, self._max_count)
-        users = []  # type: List[UserProfile]
-        seen_ids = set()  # type: Set[str]
+        users = []  # type: list[UserProfile]
+        seen_ids = set()  # type: set[str]
         cursor = None  # type: Optional[str]
         attempts = 0
-        max_attempts = int(math.ceil(count / 20.0)) + 2
+        max_attempts = math.ceil(count / 20.0) + 2
 
         while len(users) < count and attempts < max_attempts:
             attempts += 1
@@ -1399,7 +1401,7 @@ class TwitterClient:
                 "userId": user_id,
                 "count": min(count - len(users) + 5, 40),
                 "includePromotedContent": False,
-            }  # type: Dict[str, Any]
+            }  # type: dict[str, Any]
             if cursor:
                 variables["cursor"] = cursor
 
@@ -1412,7 +1414,7 @@ class TwitterClient:
                 logger.warning("No user list instructions found")
                 break
 
-            new_users = []  # type: List[UserProfile]
+            new_users = []  # type: list[UserProfile]
             next_cursor = None  # type: Optional[str]
             for instruction in instructions:
                 entries = instruction.get("entries", [])
@@ -1458,7 +1460,7 @@ class TwitterClient:
     # ── Internal: GraphQL request methods ────────────────────────────
 
     def _graphql_get(self, operation_name, variables, features, field_toggles=None):
-        # type: (str, Dict[str, Any], Dict[str, Any], Optional[Dict[str, Any]]) -> Dict[str, Any]
+        # type: (str, dict[str, Any], dict[str, Any], Optional[dict[str, Any]]) -> dict[str, Any]
         """Issue GraphQL GET request with automatic stale-fallback retry."""
         query_id = _resolve_query_id(operation_name, prefer_fallback=True, url_fetch_fn=_url_fetch)
         using_fallback = query_id == FALLBACK_QUERY_IDS.get(operation_name)
@@ -1483,15 +1485,15 @@ class TwitterClient:
             raise
 
     def _graphql_post(self, operation_name, variables, features=None):
-        # type: (str, Dict[str, Any], Optional[Dict[str, Any]]) -> Dict[str, Any]
+        # type: (str, dict[str, Any], Optional[dict[str, Any]]) -> dict[str, Any]
         """Issue GraphQL POST request with automatic stale-fallback retry."""
         query_id = _resolve_query_id(operation_name, prefer_fallback=True, url_fetch_fn=_url_fetch)
         using_fallback = query_id == FALLBACK_QUERY_IDS.get(operation_name)
 
         def _do_post(qid):
-            # type: (str) -> Dict[str, Any]
-            url = "https://x.com/i/api/graphql/%s/%s" % (qid, operation_name)
-            body = {"variables": variables, "queryId": qid}  # type: Dict[str, Any]
+            # type: (str) -> dict[str, Any]
+            url = f"https://x.com/i/api/graphql/{qid}/{operation_name}"
+            body = {"variables": variables, "queryId": qid}  # type: dict[str, Any]
             if features:
                 body["features"] = features
             return self._api_request(url, method="POST", body=body)
@@ -1513,12 +1515,12 @@ class TwitterClient:
     # ── Internal: HTTP request engine ────────────────────────────────
 
     def _api_get(self, url):
-        # type: (str) -> Dict[str, Any]
+        # type: (str) -> dict[str, Any]
         """Make authenticated GET request to Twitter API."""
         return self._api_request(url, method="GET")
 
     def _api_request(self, url, method="GET", body=None):
-        # type: (str, str, Optional[Dict[str, Any]]) -> Dict[str, Any]
+        # type: (str, str, Optional[dict[str, Any]]) -> dict[str, Any]
         """Make authenticated request to Twitter API with retry on rate limits.
 
         Uses curl_cffi for Chrome TLS/JA3/HTTP2 fingerprint impersonation.
@@ -1559,12 +1561,12 @@ class TwitterClient:
             except TwitterAPIError:
                 raise
             except Exception as exc:
-                raise TwitterAPIError(0, "Twitter API network error: %s" % exc)
+                raise TwitterAPIError(0, f"Twitter API network error: {exc}") from exc
 
             try:
                 parsed = json.loads(payload)
             except (json.JSONDecodeError, ValueError):
-                raise TwitterAPIError(0, "Twitter API returned invalid JSON")
+                raise TwitterAPIError(0, "Twitter API returned invalid JSON") from None
 
             if isinstance(parsed, dict) and parsed.get("errors"):
                 err_msg = parsed["errors"][0].get("message", "Unknown error")
@@ -1586,21 +1588,20 @@ class TwitterClient:
                 if err_code in (348, 349):
                     raise TwitterAPIError(
                         429,
-                        "Rate limited: %s (try again later, recommended wait: 15+ minutes)"
-                        % err_msg,
+                        f"Rate limited: {err_msg} (try again later, recommended wait: 15+ minutes)",
                     )
-                raise TwitterAPIError(0, "Twitter API returned errors: %s" % err_msg)
+                raise TwitterAPIError(0, f"Twitter API returned errors: {err_msg}")
 
             # GraphQL write mutations return errors in data.errors (separate from top-level)
             if isinstance(parsed, dict) and "data" in parsed:
                 data_obj = parsed["data"]
                 if isinstance(data_obj, dict):
-                    for key, val in data_obj.items():
+                    for val in data_obj.values():
                         if isinstance(val, dict) and val.get("errors"):
                             inner_errors = val["errors"]
                             if inner_errors:
                                 inner_msg = inner_errors[0].get("message", "Unknown error")
-                                raise TwitterAPIError(0, "Twitter API: %s" % inner_msg)
+                                raise TwitterAPIError(0, f"Twitter API: {inner_msg}")
 
             return parsed
 
@@ -1623,7 +1624,7 @@ class TwitterClient:
             cache_path = self._ct_cache_path()
             if not os.path.exists(cache_path):
                 return False
-            with open(cache_path, "r", encoding="utf-8") as f:
+            with open(cache_path, encoding="utf-8") as f:
                 cache = json.load(f)
             # Check TTL (1 hour)
             if time.time() - cache.get("created_at", 0) > 3600:
@@ -1712,12 +1713,12 @@ class TwitterClient:
             logger.warning("Failed to init ClientTransaction: %s", exc)
 
     def _build_headers(self, url="", method="GET"):
-        # type: (str, str) -> Dict[str, str]
+        # type: (str, str) -> dict[str, str]
         """Build shared headers for authenticated API calls."""
         headers = {
-            "Authorization": "Bearer %s" % BEARER_TOKEN,
+            "Authorization": f"Bearer {BEARER_TOKEN}",
             "Cookie": self._cookie_string
-            or "auth_token=%s; ct0=%s" % (self._auth_token, self._ct0),
+            or f"auth_token={self._auth_token}; ct0={self._ct0}",
             "X-Csrf-Token": self._ct0,
             "X-Twitter-Active-User": "yes",
             "X-Twitter-Auth-Type": "OAuth2Session",

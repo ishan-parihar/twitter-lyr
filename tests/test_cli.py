@@ -40,8 +40,7 @@ def test_cli_feed_json_input_path(tmp_path, tweet_factory) -> None:
 def test_cli_feed_input_accepts_structured_json_envelope(tmp_path, tweet_factory) -> None:
     json_path = tmp_path / "tweets.json"
     json_path.write_text(
-        ('{\n  "ok": true,\n  "schema_version": "1",\n  "data": %s\n}\n')
-        % tweets_to_json([tweet_factory("1")]),
+        ('{{\n  "ok": true,\n  "schema_version": "1",\n  "data": {}\n}}\n').format(tweets_to_json([tweet_factory("1")])),
         encoding="utf-8",
     )
 
@@ -398,11 +397,13 @@ def test_cli_bookmarks_folders_inherits_parent_options(monkeypatch) -> None:
     calls = []
 
     def fake_folder_timeline(
+        ctx: object,
         folder_id: str,
         max_count: int | None,
         since: str | None,
         as_json: bool,
         as_yaml: bool,
+        as_toon: bool,
         output_file: str | None,
         do_filter: bool,
         compact: bool,

@@ -18,6 +18,10 @@ import time
 import urllib.parse
 from dataclasses import asdict, dataclass
 from pathlib import Path
+from typing import (  # noqa: F401 (used in # type: comments)  # noqa: F401 (used in # type: comments)
+    Any,
+    Optional,
+)
 
 import requests
 from requests_oauthlib import OAuth1Session
@@ -114,7 +118,7 @@ class OAuthManager:
             return StoredTokens()
 
         try:
-            with open(TOKEN_FILE, "r") as f:
+            with open(TOKEN_FILE) as f:
                 data = json.load(f)
 
             tokens = StoredTokens()
@@ -136,7 +140,7 @@ class OAuthManager:
         """Save tokens to file."""
         data = {
             "active_type": tokens.active_type,
-        }  # type: Dict[str, Any]
+        }  # type: dict[str, Any]
         if tokens.oauth1:
             data["oauth1"] = asdict(tokens.oauth1)
         if tokens.oauth2:

@@ -20,7 +20,19 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["pytest>=8.0", "pytest-asyncio>=0.23", "ruff>=0.4"]
+dev = ["pytest>=8.0", "pytest-asyncio>=0.23", "ruff>=0.4", "mypy>=1.10,<2"]
+
+[tool.mypy]
+python_version = "3.11"
+ignore_missing_imports = true
+check_untyped_defs = true
+warn_unused_ignores = true
+no_implicit_optional = true
+# Third-party deps without stubs (yaml, requests, obscura_core, browser_cookie3,
+# x_client_transaction): mypy >=1.20 reports them as import-untyped even with
+# ignore_missing_imports; silencing the code keeps the gate green without
+# vendoring stubs for untyped ecosystem packages.
+disable_error_code = ["import-untyped"]
 
 [project.scripts]
 twitter-lyr = "twitter_cli.cli:cli"
@@ -32,6 +44,18 @@ include = ["twitter_cli*"]
 [tool.ruff]
 line-length = 100
 target-version = "py311"
+
+[tool.ruff.lint]
+# Curated rule set (matches the tg-cli / obscura-core convention): the codebase
+# is written against E/F/I/B/UP — not ruff's unbounded default. Explicit select
+# keeps the CI gate deterministic instead of tracking whatever rules new ruff
+# versions enable by default.
+select = ["E", "F", "I", "B", "UP"]
+ignore = [
+    "E501",  # line length handled by formatter; strings are kept readable
+    "UP031",  # %-format strings are used deliberately (incl. logging formats);
+              # ruff will not auto-fix these and they are correct as-is
+]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

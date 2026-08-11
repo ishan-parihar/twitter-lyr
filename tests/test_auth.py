@@ -33,6 +33,10 @@ def test_get_cookies_prefers_env(monkeypatch) -> None:
 
 
 def test_get_cookies_reextracts_after_verify_failure(monkeypatch) -> None:
+    # This test exercises the env -> browser fallback ordering, which predates the
+    # obscura-daemon integration. Disable the daemon so it cannot intercept and
+    # return live cookies ahead of the mocked browser extraction.
+    monkeypatch.setenv("TWITTER_USE_DAEMON", "false")
     monkeypatch.setattr(auth, "load_from_env", lambda: None)
     extracted = iter([
         ({"auth_token": "stale-token", "ct0": "stale-csrf", "cookie_string": "stale=1"}, []),
@@ -92,7 +96,7 @@ def test_extract_from_browser_logs_warning_when_all_methods_fail(monkeypatch, ca
     monkeypatch.setattr(auth, "_extract_via_subprocess", lambda: (None, []))
 
     with caplog.at_level("WARNING"):
-        cookies, diagnostics = auth.extract_from_browser()
+        cookies, _diagnostics = auth.extract_from_browser()
 
     assert cookies is None
     assert "Twitter cookie extraction failed in both in-process and subprocess modes" in caplog.text
@@ -114,7 +118,7 @@ def test_extract_in_process_supports_arc(monkeypatch) -> None:
     )
     monkeypatch.setitem(sys.modules, "browser_cookie3", fake_module)
 
-    cookies, diagnostics = auth._extract_in_process()
+    cookies, _diagnostics = auth._extract_in_process()
 
     assert cookies is not None
     assert cookies["auth_token"] == "token"
@@ -136,7 +140,7 @@ def test_extract_via_subprocess_script_includes_arc(monkeypatch) -> None:
 
     monkeypatch.setattr(auth.subprocess, "run", _run)
 
-    cookies, diagnostics = auth._extract_via_subprocess()
+    cookies, _diagnostics = auth._extract_via_subprocess()
 
     assert cookies is None
     assert '"arc": browser_cookie3.arc' in seen["script"]
@@ -158,7 +162,7 @@ def test_extract_via_subprocess_retries_uv_when_current_env_has_no_output(monkey
 
     monkeypatch.setattr(auth.subprocess, "run", _run)
 
-    cookies, diagnostics = auth._extract_via_subprocess()
+    cookies, _diagnostics = auth._extract_via_subprocess()
 
     assert cookies == {"auth_token": "token", "ct0": "csrf"}
     assert len(calls) == 2
@@ -321,7 +325,7 @@ def test_extract_in_process_tries_multiple_profiles(monkeypatch, tmp_path) -> No
     )
     monkeypatch.setitem(sys.modules, "browser_cookie3", fake_module)
 
-    cookies, diagnostics = auth._extract_in_process()
+    cookies, _diagnostics = auth._extract_in_process()
 
     assert cookies is not None
     assert cookies["auth_token"] == "tok123"
@@ -395,7 +399,7 @@ def test_get_cookies_includes_keychain_hint_in_error(monkeypatch) -> None:
 
     msg = str(exc_info.value)
     assert "security unlock-keychain" in msg
-    assert "twitter -v" in msg
+    assert "twitter-lyr -v" in msg
 
 
 def test_extract_in_process_returns_diagnostics_on_failure(monkeypatch) -> None:

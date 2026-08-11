@@ -29,7 +29,7 @@ def test_tweets_json_roundtrip(tweet_factory) -> None:
 
 def test_tweets_from_json_accepts_structured_success_envelope(tweet_factory) -> None:
     tweets = [tweet_factory("1")]
-    raw = ('{\n  "ok": true,\n  "schema_version": "1",\n  "data": %s\n}\n') % tweets_to_json(tweets)
+    raw = (f'{{\n  "ok": true,\n  "schema_version": "1",\n  "data": {tweets_to_json(tweets)}\n}}\n')
 
     restored = tweets_from_json(raw)
 

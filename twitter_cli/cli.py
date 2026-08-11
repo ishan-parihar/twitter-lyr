@@ -39,8 +39,9 @@ import sys
 import time
 import urllib.parse
 from collections.abc import Callable
+from datetime import UTC
 from pathlib import Path
-from typing import Any, Optional
+from typing import TYPE_CHECKING, Any, Optional  # noqa: F401 (used in # type: comments)
 
 import click
 import yaml
@@ -49,6 +50,10 @@ from rich.console import Console
 from . import __version__
 from .auth import get_cookies
 from .cache import resolve_cached_tweet, save_tweet_cache
+
+if TYPE_CHECKING:
+    from .oauth import AppOnlyToken, OAuth1Tokens  # noqa: F401 (used in # type: comments)
+
 from .client import TwitterClient
 from .config import load_config
 from .exceptions import TwitterError
@@ -88,8 +93,8 @@ from .serialization import (
 ConfigDict = dict[str, Any]
 TweetList = list[Tweet]
 FetchTweets = Callable[[int], TweetList]
-OptionalPath = Optional[str]
-StructuredMode = Optional[str]
+OptionalPath = str | None
+StructuredMode = str | None
 WritePayload = dict[str, Any]
 WriteOperation = Callable[[TwitterClient], WritePayload]
 
@@ -136,9 +141,8 @@ def _install_session_hook_and_exit():
     # type: () -> None
     """Install session hooks for Claude Code/Codex (AXI §7)."""
     import json
-    from pathlib import Path
-
     import shutil
+    from pathlib import Path
 
     bin_path = shutil.which("twitter-lyr") or "twitter-lyr"
     home_dir = Path.home()
@@ -205,11 +209,10 @@ def _install_session_hook_and_exit():
 def _install_agent_skill_and_exit():
     # type: () -> None
     """Create installable agent skill from home view (AXI §7)."""
+    import shutil
     from pathlib import Path
 
-    import shutil
-
-    bin_path = shutil.which("twitter-lyr") or "twitter-lyr"
+    shutil.which("twitter-lyr") or "twitter-lyr"
     skill_dir = Path.home() / ".claude" / "skills" / "twitter-lyr"
     skill_dir.mkdir(parents=True, exist_ok=True)
 
@@ -313,21 +316,21 @@ filter:
 
 
 def _load_tweets_from_json(path):
-    # type: (str) -> List[Tweet]
+    # type: (str) -> list[Tweet]
     """Load tweets from a JSON file (previously exported)."""
     file_path = Path(path)
     if not file_path.exists():
-        raise RuntimeError("Input file not found: %s" % path)
+        raise RuntimeError(f"Input file not found: {path}")
 
     try:
         raw = file_path.read_text(encoding="utf-8")
         return tweets_from_json(raw)
     except (ValueError, OSError) as exc:
-        raise RuntimeError("Invalid tweet JSON file %s: %s" % (path, exc))
+        raise RuntimeError(f"Invalid tweet JSON file {path}: {exc}") from exc
 
 
 def _get_client(config=None, quiet=False):
-    # type: (Optional[Dict[str, Any]], bool) -> TwitterClient
+    # type: (Optional[dict[str, Any]], bool) -> TwitterClient
     """Create an authenticated API client."""
     if not quiet:
         console.print("\n🔐 Getting Twitter cookies...")
@@ -349,7 +352,7 @@ def _error_code_from_exc(exc: Exception) -> str:
 def _exit_with_error(exc: Exception) -> None:
     if emit_error(_error_code_from_exc(exc), str(exc)):
         sys.exit(1)
-    console.print("[red]❌ %s[/red]" % exc)
+    console.print(f"[red]❌ {exc}[/red]")
     sys.exit(1)
 
 
@@ -389,19 +392,19 @@ def _normalize_tweet_id(value):
         path = parsed.path.rstrip("/")
         match = re.search(r"/(?:status|article)/(\d+)$", path)
         if not match:
-            raise RuntimeError("Invalid tweet URL: %s" % value)
+            raise RuntimeError(f"Invalid tweet URL: {value}")
         candidate = match.group(1)
     else:
         candidate = raw.rstrip("/").split("/")[-1]
         candidate = candidate.split("?", 1)[0].split("#", 1)[0]
 
     if not candidate.isdigit():
-        raise RuntimeError("Invalid tweet ID: %s" % value)
+        raise RuntimeError(f"Invalid tweet ID: {value}")
     return candidate
 
 
 def _apply_filter(tweets, do_filter, config, rich_output=True):
-    # type: (List[Tweet], bool, dict, bool) -> List[Tweet]
+    # type: (list[Tweet], bool, dict, bool) -> list[Tweet]
     """Optionally apply tweet filtering."""
     if not do_filter:
         return tweets
@@ -482,8 +485,8 @@ def _run_write_command(
 @click.option(
     "--compact/--full",
     "-c/-F",
-    default=True,
-    help="Compact output (default) or full output (15 fields).",
+    default=False,
+    help="Compact output or full output (15 fields).",
 )
 @click.option("--full-text", is_flag=True, help="Show full tweet text (no truncation).")
 @click.option("--debug", is_flag=True, help="Enable debug logging.")
@@ -547,7 +550,7 @@ def cli(
             import shutil
 
             bin_path = shutil.which("twitter-lyr") or "twitter-lyr"
-            console.print("bin: %s" % bin_path)
+            console.print(f"bin: {bin_path}")
             console.print("description: Twitter/X CLI — read timelines, search, post, and more")
             console.print()
         ctx.invoke(ctx.command.commands["feed"])
@@ -569,7 +572,7 @@ def _fetch_and_display(
     full_text=False,
     hint=None,
 ):
-    # type: (Any, Any, str, str, Optional[int], bool, bool, bool, Optional[str], bool, Optional[dict], bool, bool) -> None
+    # type: (Any, Any, str, str, Optional[int], bool, bool, bool, Optional[str], bool, Optional[dict], bool, bool, Optional[str]) -> None
     """Common fetch-filter-display logic for timeline-like commands."""
     if config is None:
         config = load_config()
@@ -591,10 +594,16 @@ def _fetch_and_display(
     if output_file:
         Path(output_file).write_text(tweets_to_json(filtered), encoding="utf-8")
         if rich_output:
-            console.print("💾 Saved to %s\n" % output_file)
+            console.print(f"💾 Saved to {output_file}\n")
 
     if compact:
-        if ctx.obj.get("output_format") == "toon":
+        # Explicit --json/--yaml/--toon flags win over the global --format
+        # default ("toon") so `--json` in compact mode still emits JSON.
+        output_format = ctx.obj.get("output_format", "toon")
+        fmt = output_format if not (as_json or as_yaml or as_toon) else (
+            "json" if as_json else "yaml" if as_yaml else "toon"
+        )
+        if fmt == "toon":
             from .serialization import tweet_to_compact_dict
 
             emit_toon([tweet_to_compact_dict(t) for t in filtered])
@@ -615,8 +624,7 @@ def _fetch_and_display(
         ):
             return
         console.print(
-            "[dim]No %s found. Try `twitter-lyr feed` or `twitter-lyr search <query>`.[/dim]"
-            % label
+            f"[dim]No {label} found. Try `twitter-lyr feed` or `twitter-lyr search <query>`.[/dim]"
         )
         return
 
@@ -639,18 +647,13 @@ def _fetch_and_display(
 
 
 def _emit_timeline_structured(tweets, next_cursor, *, as_json, as_yaml, as_toon):
-    # type: (TweetList, Optional[str], bool, bool) -> bool
+    # type: (TweetList, Optional[str], bool, bool, bool) -> bool
     """Emit timeline data with pagination metadata while keeping `data` a tweet list."""
-    if not tweets:
-        if emit_empty_state(
-            "tweets",
-            "Try `twitter-lyr feed` or `twitter-lyr search <query>`.",
-            as_json=as_json,
-            as_yaml=as_yaml,
-            as_toon=as_toon,
-        ):
-            return True
-        return False
+    # Pagination metadata takes precedence over the P5 empty-state: an empty
+    # page that carries a nextCursor is a legitimate paged result and must
+    # keep the machine-readable pagination envelope.
+    if not tweets and not next_cursor:
+        return bool(emit_empty_state("tweets", "Try `twitter-lyr feed` or `twitter-lyr search <query>`.", as_json=as_json, as_yaml=as_yaml, as_toon=as_toon))
     payload = success_payload(tweets_to_data(tweets))
     payload["total_fetched"] = len(tweets)
     if next_cursor:
@@ -659,14 +662,23 @@ def _emit_timeline_structured(tweets, next_cursor, *, as_json, as_yaml, as_toon)
 
 
 def _run_bookmarks_command(
-    max_count, as_json, as_yaml, as_toon, output_file, do_filter, compact=False, full_text=False
+    ctx,
+    max_count,
+    as_json,
+    as_yaml,
+    as_toon,
+    output_file,
+    do_filter,
+    compact=False,
+    full_text=False,
 ):
-    # type: (Optional[int], bool, bool, bool, Optional[str], bool, bool, bool) -> None
+    # type: (Any, Optional[int], bool, bool, bool, Optional[str], bool, bool, bool) -> None
     config = load_config()
 
     def _run():
         client = _get_client(config)
         _fetch_and_display(
+            ctx,
             lambda count: client.fetch_bookmarks(count),
             "bookmarks",
             "🔖",
@@ -770,7 +782,7 @@ def feed_cmd(
     full_text,
     include_promoted,
 ):
-    # type: (Any, str, Optional[int], Optional[str], bool, bool, bool, Optional[str], Optional[str], bool, bool, bool) -> None
+    # type: (Any, str, Optional[int], Optional[str], bool, bool, bool, Optional[str], Optional[str], Optional[str], Optional[str], bool, bool, bool) -> None
     """Fetch home timeline with optional filtering."""
     compact = ctx.obj.get("compact", False)
     rich_output = use_rich_output(as_json=as_json, as_yaml=as_yaml, compact=compact)
@@ -779,7 +791,7 @@ def feed_cmd(
     try:
         if input_file:
             if rich_output:
-                console.print("📂 Loading tweets from %s..." % input_file)
+                console.print(f"📂 Loading tweets from {input_file}...")
             tweets = _load_tweets_from_json(input_file)
             if rich_output:
                 console.print("   Loaded %d tweets" % len(tweets))
@@ -815,10 +827,16 @@ def feed_cmd(
     if output_file:
         Path(output_file).write_text(tweets_to_json(filtered), encoding="utf-8")
         if rich_output:
-            console.print("💾 Saved filtered tweets to %s\n" % output_file)
+            console.print(f"💾 Saved filtered tweets to {output_file}\n")
 
     if compact:
-        if ctx.obj.get("output_format") == "toon":
+        # Explicit --json/--yaml/--toon flags win over the global --format
+        # default ("toon") so `--json` in compact mode still emits JSON.
+        output_format = ctx.obj.get("output_format", "toon")
+        fmt = output_format if not (as_json or as_yaml or as_toon) else (
+            "json" if as_json else "yaml" if as_yaml else "toon"
+        )
+        if fmt == "toon":
             from .serialization import tweet_to_compact_dict
 
             emit_toon([tweet_to_compact_dict(t) for t in filtered])
@@ -852,9 +870,10 @@ def feed_cmd(
 @click.option("--full-text", is_flag=True, help="Show full tweet text in table output.")
 @click.pass_context
 def favorites(ctx, max_count, as_json, as_yaml, as_toon, output_file, do_filter, full_text):
-    # type: (Any, Optional[int], bool, bool, Optional[str], bool, bool) -> None
+    # type: (Any, Optional[int], bool, bool, bool, Optional[str], bool, bool) -> None
     """Fetch bookmarked (favorite) tweets."""
     _run_bookmarks_command(
+        ctx,
         max_count,
         as_json,
         as_yaml,
@@ -878,10 +897,11 @@ def favorites(ctx, max_count, as_json, as_yaml, as_toon, output_file, do_filter,
 @click.option("--full-text", is_flag=True, help="Show full tweet text in table output.")
 @click.pass_context
 def bookmarks(ctx, max_count, as_json, as_yaml, as_toon, output_file, do_filter, full_text):
-    # type: (Any, Optional[int], bool, bool, Optional[str], bool, bool) -> None
+    # type: (Any, Optional[int], bool, bool, bool, Optional[str], bool, bool) -> None
     """Fetch bookmarked tweets, or manage bookmark folders."""
     if ctx.invoked_subcommand is None:
         _run_bookmarks_command(
+            ctx,
             max_count,
             as_json,
             as_yaml,
@@ -911,7 +931,7 @@ def bookmarks(ctx, max_count, as_json, as_yaml, as_toon, output_file, do_filter,
 def bookmarks_folders(
     ctx, folder_id, max_count, since, as_json, as_yaml, as_toon, output_file, do_filter, full_text
 ):
-    # type: (Any, Optional[str], Optional[int], Optional[str], bool, bool, Optional[str], bool, bool) -> None
+    # type: (Any, Optional[str], Optional[int], Optional[str], bool, bool, bool, Optional[str], bool, bool) -> None
     """List bookmark folders, or fetch tweets from a folder.
 
     \b
@@ -933,11 +953,13 @@ def bookmarks_folders(
         _run_list_bookmark_folders(as_json, as_yaml, compact, output_file)
     else:
         _run_bookmark_folder_timeline(
+            ctx,
             folder_id,
             max_count,
             since,
             as_json,
             as_yaml,
+            as_toon,
             output_file,
             do_filter,
             compact,
@@ -969,7 +991,7 @@ def _run_list_bookmark_folders(as_json, as_yaml, compact, output_file=None):
                 _json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8"
             )
             if rich_output:
-                console.print("💾 Saved to %s\n" % output_file)
+                console.print(f"💾 Saved to {output_file}\n")
 
         if compact:
             import json as _json
@@ -997,16 +1019,16 @@ def _run_list_bookmark_folders(as_json, as_yaml, compact, output_file=None):
 def _parse_since_date(since_str):
     # type: (str) -> Any
     """Parse a YYYY-MM-DD date string into a datetime for filtering."""
-    from datetime import datetime, timezone
+    from datetime import datetime
 
     try:
-        return datetime.strptime(since_str, "%Y-%m-%d").replace(tzinfo=timezone.utc)
+        return datetime.strptime(since_str, "%Y-%m-%d").replace(tzinfo=UTC)
     except ValueError:
-        raise RuntimeError("Invalid --since date format. Use YYYY-MM-DD (e.g. 2026-01-15).")
+        raise RuntimeError("Invalid --since date format. Use YYYY-MM-DD (e.g. 2026-01-15).") from None
 
 
 def _filter_tweets_since(tweets, since_str):
-    # type: (List[Tweet], str) -> List[Tweet]
+    # type: (list[Tweet], str) -> list[Tweet]
     """Filter tweets to only those created after the given date."""
     from email.utils import parsedate_to_datetime
 
@@ -1025,9 +1047,19 @@ def _filter_tweets_since(tweets, since_str):
 
 
 def _run_bookmark_folder_timeline(
-    folder_id, max_count, since, as_json, as_yaml, output_file, do_filter, compact, full_text=False
+    ctx,
+    folder_id,
+    max_count,
+    since,
+    as_json,
+    as_yaml,
+    as_toon,
+    output_file,
+    do_filter,
+    compact,
+    full_text=False,
 ):
-    # type: (str, Optional[int], Optional[str], bool, bool, Optional[str], bool, bool, bool) -> None
+    # type: (Any, str, Optional[int], Optional[str], bool, bool, bool, Optional[str], bool, bool, bool) -> None
     config = load_config()
 
     def _run():
@@ -1040,12 +1072,14 @@ def _run_bookmark_folder_timeline(
             return tweets
 
         _fetch_and_display(
+            ctx,
             fetch_fn,
-            "bookmark folder %s" % folder_id,
+            f"bookmark folder {folder_id}",
             "\U0001f4c2",
             max_count,
             as_json,
             as_yaml,
+            as_toon,
             output_file,
             do_filter,
             config,
@@ -1068,7 +1102,7 @@ def user(screen_name, as_json, as_yaml, as_toon):
         rich_output = use_rich_output(as_json=as_json, as_yaml=as_yaml)
         client = _get_client(config, quiet=not rich_output)
         if rich_output:
-            console.print("👤 Fetching user @%s..." % screen_name)
+            console.print(f"👤 Fetching user @{screen_name}...")
         profile = client.fetch_user(screen_name)
     except (TwitterError, RuntimeError) as exc:
         _exit_with_error(exc)
@@ -1090,7 +1124,7 @@ def user(screen_name, as_json, as_yaml, as_toon):
 @click.option("--full-text", is_flag=True, help="Show full tweet text in table output.")
 @click.pass_context
 def user_posts(ctx, screen_name, max_count, as_json, as_yaml, as_toon, output_file, full_text):
-    # type: (Any, str, int, bool, bool, Optional[str], bool) -> None
+    # type: (Any, str, int, bool, bool, bool, Optional[str], bool) -> None
     """List a user's tweets. SCREEN_NAME is the @handle (without @)."""
     screen_name = screen_name.lstrip("@")
     compact = ctx.obj.get("compact", False)
@@ -1100,15 +1134,17 @@ def user_posts(ctx, screen_name, max_count, as_json, as_yaml, as_toon, output_fi
         rich_output = use_rich_output(as_json=as_json, as_yaml=as_yaml, compact=compact)
         client = _get_client(config, quiet=not rich_output)
         if rich_output:
-            console.print("👤 Fetching @%s's profile..." % screen_name)
+            console.print(f"👤 Fetching @{screen_name}'s profile...")
         profile = client.fetch_user(screen_name)
         _fetch_and_display(
+            ctx,
             lambda count: client.fetch_user_tweets(profile.id, count),
-            "@%s tweets" % screen_name,
+            f"@{screen_name} tweets",
             "📝",
             max_count,
             as_json,
             as_yaml,
+            as_toon,
             output_file,
             False,
             config,
@@ -1185,7 +1221,7 @@ def search(
     do_filter,
     full_text,
 ):
-    # type: (Any, str, str, Optional[str], Optional[str], Optional[str], Optional[str], Optional[str], tuple, tuple, Optional[int], Optional[int], int, bool, bool, Optional[str], bool, bool) -> None
+    # type: (Any, str, str, Optional[str], Optional[str], Optional[str], Optional[str], Optional[str], tuple, tuple, Optional[int], Optional[int], int, bool, bool, bool, Optional[str], bool, bool) -> None
     """Search tweets by QUERY string with optional advanced filters.
 
     QUERY is the search keywords (optional when using advanced filters).
@@ -1229,7 +1265,7 @@ def search(
         _fetch_and_display(
             ctx,
             lambda count: client.fetch_search(composed_query, count, product),
-            "'%s' (%s)" % (composed_query, product),
+            f"'{composed_query}' ({product})",
             "🔍",
             max_count,
             as_json,
@@ -1261,7 +1297,7 @@ def search(
 def likes(
     ctx, screen_name, max_count, as_json, as_yaml, as_toon, output_file, do_filter, full_text
 ):
-    # type: (Any, str, int, bool, bool, Optional[str], bool, bool) -> None
+    # type: (Any, str, int, bool, bool, bool, Optional[str], bool, bool) -> None
     """Show tweets liked by a user. SCREEN_NAME is the @handle (without @).
 
     NOTE: Twitter/X made all likes private since June 2024. You can only view
@@ -1275,7 +1311,7 @@ def likes(
         rich_output = use_rich_output(as_json=as_json, as_yaml=as_yaml, compact=compact)
         client = _get_client(config, quiet=not rich_output)
         if rich_output:
-            console.print("👤 Fetching @%s's profile..." % screen_name)
+            console.print(f"👤 Fetching @{screen_name}'s profile...")
         profile = client.fetch_user(screen_name)
 
         # Warn if querying another user's likes (Twitter made likes private since June 2024)
@@ -1286,8 +1322,7 @@ def likes(
                     console.print(
                         "\n[yellow]⚠️  Twitter/X made all likes private since June 2024. "
                         "You can only view your own likes. "
-                        "Querying @%s's likes will likely return empty results.[/yellow]\n"
-                        % screen_name
+                        f"Querying @{screen_name}'s likes will likely return empty results.[/yellow]\n"
                     )
                 else:
                     logger.warning(
@@ -1299,12 +1334,14 @@ def likes(
             pass  # Don't block the command if whoami fails
 
         _fetch_and_display(
+            ctx,
             lambda count: client.fetch_user_likes(profile.id, count),
-            "@%s likes" % screen_name,
+            f"@{screen_name} likes",
             "❤️",
             max_count,
             as_json,
             as_yaml,
+            as_toon,
             output_file,
             do_filter,
             config,
@@ -1322,7 +1359,7 @@ def likes(
 @structured_output_options
 @click.pass_context
 def tweet(ctx, tweet_id, max_count, full_text, as_json, as_yaml, as_toon):
-    # type: (Any, str, int, bool, bool, bool) -> None
+    # type: (Any, str, int, bool, bool, bool, bool) -> None
     """View a tweet and its replies. TWEET_ID is the numeric tweet ID or full URL."""
     compact = ctx.obj.get("compact", False)
     tweet_id = _normalize_tweet_id(tweet_id)
@@ -1331,7 +1368,7 @@ def tweet(ctx, tweet_id, max_count, full_text, as_json, as_yaml, as_toon):
     try:
         client = _get_client(config, quiet=not rich_output)
         if rich_output:
-            console.print("🐦 Fetching tweet %s...\n" % tweet_id)
+            console.print(f"🐦 Fetching tweet {tweet_id}...\n")
         start = time.time()
         tweets = client.fetch_tweet_detail(tweet_id, _resolve_configured_count(config, max_count))
         elapsed = time.time() - start
@@ -1351,7 +1388,7 @@ def tweet(ctx, tweet_id, max_count, full_text, as_json, as_yaml, as_toon):
 
 
 def _emit_tweet_detail(tweets, compact, as_json, as_yaml, as_toon, full_text):
-    # type: (list, bool, bool, bool, bool) -> None
+    # type: (list, bool, bool, bool, bool, bool) -> None
     """Render tweet detail + replies in the requested output format."""
     if compact:
         click.echo(tweets_to_compact_json(tweets))
@@ -1395,7 +1432,7 @@ def _print_show_hint(hint=None):
 @structured_output_options
 @click.pass_context
 def show(ctx, index, max_count, full_text, output_file, as_json, as_yaml, as_toon):
-    # type: (Any, int, Optional[int], bool, Optional[str], bool, bool) -> None
+    # type: (Any, int, Optional[int], bool, Optional[str], bool, bool, bool) -> None
     """View tweet #INDEX from the last feed/search results."""
     compact = ctx.obj.get("compact", False)
 
@@ -1427,7 +1464,7 @@ def show(ctx, index, max_count, full_text, output_file, as_json, as_yaml, as_too
     if output_file:
         Path(output_file).write_text(tweets_to_json(tweets), encoding="utf-8")
         if rich_output:
-            console.print("💾 Saved to %s\n" % output_file)
+            console.print(f"💾 Saved to {output_file}\n")
 
     _emit_tweet_detail(
         tweets,
@@ -1450,6 +1487,8 @@ def show(ctx, index, max_count, full_text, output_file, as_json, as_yaml, as_too
 def article(ctx, tweet_id, as_json, as_yaml, as_toon, as_markdown, output_file):
     # type: (Any, str, bool, bool, bool, bool, Optional[str]) -> None
     """Fetch a Twitter Article. TWEET_ID is the numeric tweet ID or full URL."""
+    # Compact is an explicit opt-in (`-c`); article rendering has no compact
+    # form, so reject it when the user explicitly requests it.
     compact = ctx.obj.get("compact", False)
     if compact:
         raise click.UsageError(
@@ -1465,12 +1504,12 @@ def article(ctx, tweet_id, as_json, as_yaml, as_toon, as_markdown, output_file):
     try:
         client = _get_client(config, quiet=not rich_output)
         if rich_output:
-            console.print("📰 Fetching article %s...\n" % tweet_id)
+            console.print(f"📰 Fetching article {tweet_id}...\n")
         start = time.time()
         article_tweet = client.fetch_article(tweet_id)
         elapsed = time.time() - start
         if rich_output:
-            console.print("✅ Fetched article in %.1fs\n" % elapsed)
+            console.print(f"✅ Fetched article in {elapsed:.1f}s\n")
     except (TwitterError, RuntimeError) as exc:
         _exit_with_error(exc)
 
@@ -1490,7 +1529,7 @@ def article(ctx, tweet_id, as_json, as_yaml, as_toon, as_markdown, output_file):
             )
         Path(output_file).write_text(rendered_output, encoding="utf-8")
         if rich_output:
-            console.print("💾 Saved article output to %s\n" % output_file)
+            console.print(f"💾 Saved article output to {output_file}\n")
 
     if as_markdown:
         click.echo(markdown, nl=False)
@@ -1516,7 +1555,7 @@ def article(ctx, tweet_id, as_json, as_yaml, as_toon, as_markdown, output_file):
 @click.option("--full-text", is_flag=True, help="Show full tweet text in table output.")
 @click.pass_context
 def list_timeline(ctx, list_id, max_count, cursor, as_json, as_yaml, as_toon, do_filter, full_text):
-    # type: (Any, str, int, Optional[str], bool, bool, bool, bool) -> None
+    # type: (Any, str, int, Optional[str], bool, bool, bool, bool, bool) -> None
     """Fetch tweets from a Twitter List. LIST_ID is the numeric list ID."""
     compact = ctx.obj.get("compact", False)
     config = load_config()
@@ -1586,7 +1625,7 @@ def _fetch_and_display_users(
         rich_output = use_rich_output(as_json=as_json, as_yaml=as_yaml)
         client = _get_client(config, quiet=not rich_output)
         if rich_output:
-            console.print("👤 Fetching @%s's profile..." % screen_name)
+            console.print(f"👤 Fetching @{screen_name}'s profile...")
         profile = client.fetch_user(screen_name)
         fetch_count = _resolve_configured_count(config, max_count)
         if rich_output:
@@ -1611,7 +1650,7 @@ def _fetch_and_display_users(
 @click.option("--max", "-n", "max_count", type=int, default=None, help="Max users to fetch.")
 @structured_output_options
 def followers(screen_name, max_count, as_json, as_yaml, as_toon):
-    # type: (str, int, bool, bool) -> None
+    # type: (str, int, bool, bool, bool) -> None
     """List followers of a user. SCREEN_NAME is the @handle (without @)."""
     _fetch_and_display_users(
         screen_name, "fetch_followers", "followers", max_count, as_json, as_yaml
@@ -1623,7 +1662,7 @@ def followers(screen_name, max_count, as_json, as_yaml, as_toon):
 @click.option("--max", "-n", "max_count", type=int, default=None, help="Max users to fetch.")
 @structured_output_options
 def following(screen_name, max_count, as_json, as_yaml, as_toon):
-    # type: (str, int, bool, bool) -> None
+    # type: (str, int, bool, bool, bool) -> None
     """List accounts a user is following. SCREEN_NAME is the @handle (without @)."""
     _fetch_and_display_users(
         screen_name, "fetch_following", "following", max_count, as_json, as_yaml
@@ -1682,7 +1721,7 @@ def _write_action(emoji, action_desc, client_method, tweet_id, as_json=False, as
         as_json=as_json,
         as_yaml=as_yaml,
         operation=operation,
-        progress_lines=["%s %s %s..." % (emoji, action_desc, tweet_id)],
+        progress_lines=[f"{emoji} {action_desc} {tweet_id}..."],
         success_lines=["[green]✅ Done.[/green]"],
         error_details={"action": action_name, "id": tweet_id},
     )
@@ -1709,7 +1748,7 @@ def _write_action(emoji, action_desc, client_method, tweet_id, as_json=False, as
 )
 @structured_output_options
 def post(text, reply_to, images, videos, as_json, as_yaml, as_toon):
-    # type: (str, Optional[str], tuple, tuple, bool, bool) -> None
+    # type: (str, Optional[str], tuple, tuple, bool, bool, bool) -> None
     """Post a new tweet. TEXT is the tweet content.
 
     Attach images with --image / -i (up to 4):
@@ -1724,7 +1763,7 @@ def post(text, reply_to, images, videos, as_json, as_yaml, as_toon):
       twitter-lyr post "Video tweet" --video clip.mp4
     """
     normalized_reply_to = _normalize_tweet_id(reply_to) if reply_to else None
-    action = "Replying to %s" % normalized_reply_to if normalized_reply_to else "Posting tweet"
+    action = f"Replying to {normalized_reply_to}" if normalized_reply_to else "Posting tweet"
     rich_output = not _structured_mode(as_json=as_json, as_yaml=as_yaml)
 
     def operation(client: TwitterClient) -> WritePayload:
@@ -1736,19 +1775,19 @@ def post(text, reply_to, images, videos, as_json, as_yaml, as_toon):
             "success": True,
             "action": "post",
             "id": tweet_id,
-            "url": "https://x.com/i/status/%s" % tweet_id,
+            "url": f"https://x.com/i/status/{tweet_id}",
         }
 
     payload = _run_write_command(
         as_json=as_json,
         as_yaml=as_yaml,
         operation=operation,
-        progress_lines=["✏️  %s..." % action],
+        progress_lines=[f"✏️  {action}..."],
         success_lines=["[green]✅ Tweet posted![/green]"],
         error_details={"action": "post", "replyTo": normalized_reply_to},
     )
     if payload and not _structured_mode(as_json=as_json, as_yaml=as_yaml):
-        console.print("🔗 %s" % payload["url"])
+        console.print("🔗 {}".format(payload["url"]))
 
 
 @cli.command(name="reply")
@@ -1772,7 +1811,7 @@ def post(text, reply_to, images, videos, as_json, as_yaml, as_toon):
 )
 @structured_output_options
 def reply_tweet(tweet_id, text, images, videos, as_json, as_yaml, as_toon):
-    # type: (str, str, tuple, tuple, bool, bool) -> None
+    # type: (str, str, tuple, tuple, bool, bool, bool) -> None
     """Reply to a tweet. TWEET_ID is the tweet to reply to, TEXT is the reply content."""
     tweet_id = _normalize_tweet_id(tweet_id)
     rich_output = not _structured_mode(as_json=as_json, as_yaml=as_yaml)
@@ -1785,19 +1824,19 @@ def reply_tweet(tweet_id, text, images, videos, as_json, as_yaml, as_toon):
             "action": "reply",
             "id": new_id,
             "replyTo": tweet_id,
-            "url": "https://x.com/i/status/%s" % new_id,
+            "url": f"https://x.com/i/status/{new_id}",
         }
 
     payload = _run_write_command(
         as_json=as_json,
         as_yaml=as_yaml,
         operation=operation,
-        progress_lines=["💬 Replying to %s..." % tweet_id],
+        progress_lines=[f"💬 Replying to {tweet_id}..."],
         success_lines=["[green]✅ Reply posted![/green]"],
         error_details={"action": "reply", "replyTo": tweet_id},
     )
     if payload and not _structured_mode(as_json=as_json, as_yaml=as_yaml):
-        console.print("🔗 %s" % payload["url"])
+        console.print("🔗 {}".format(payload["url"]))
 
 
 @cli.command(name="quote")
@@ -1821,7 +1860,7 @@ def reply_tweet(tweet_id, text, images, videos, as_json, as_yaml, as_toon):
 )
 @structured_output_options
 def quote_tweet(tweet_id, text, images, videos, as_json, as_yaml, as_toon):
-    # type: (str, str, tuple, tuple, bool, bool) -> None
+    # type: (str, str, tuple, tuple, bool, bool, bool) -> None
     """Quote-tweet a tweet. TWEET_ID is the tweet to quote, TEXT is the commentary."""
     tweet_id = _normalize_tweet_id(tweet_id)
     rich_output = not _structured_mode(as_json=as_json, as_yaml=as_yaml)
@@ -1834,19 +1873,19 @@ def quote_tweet(tweet_id, text, images, videos, as_json, as_yaml, as_toon):
             "action": "quote",
             "id": new_id,
             "quotedId": tweet_id,
-            "url": "https://x.com/i/status/%s" % new_id,
+            "url": f"https://x.com/i/status/{new_id}",
         }
 
     payload = _run_write_command(
         as_json=as_json,
         as_yaml=as_yaml,
         operation=operation,
-        progress_lines=["🔄 Quoting tweet %s..." % tweet_id],
+        progress_lines=[f"🔄 Quoting tweet {tweet_id}..."],
         success_lines=["[green]✅ Quote tweet posted![/green]"],
         error_details={"action": "quote", "quotedId": tweet_id},
     )
     if payload and not _structured_mode(as_json=as_json, as_yaml=as_yaml):
-        console.print("🔗 %s" % payload["url"])
+        console.print("🔗 {}".format(payload["url"]))
 
 
 @cli.command(name="status")
@@ -1871,7 +1910,7 @@ def status(as_json, as_yaml, as_toon):
         return
 
     console.print("[green]✅ Authenticated.[/green]")
-    console.print("👤 @%s" % profile.screen_name)
+    console.print(f"👤 @{profile.screen_name}")
 
 
 @cli.group(name="media", invoke_without_command=True)
@@ -1894,7 +1933,7 @@ def media_status(media_id, as_json, as_yaml, as_toon):
         rich_output = use_rich_output(as_json=as_json, as_yaml=as_yaml)
         client = _get_client(config, quiet=not rich_output)
         if rich_output:
-            console.print("📤 Checking media status for %s..." % media_id)
+            console.print(f"📤 Checking media status for {media_id}...")
         status = client.check_media_status(media_id)
     except (TwitterError, RuntimeError) as exc:
         if emit_structured(
@@ -1918,8 +1957,7 @@ def media_status(media_id, as_json, as_yaml, as_toon):
             console.print("[red]❌ Media processing failed[/red]")
             if error:
                 console.print(
-                    "   Error: %s (code %s)"
-                    % (error.get("message", "Unknown"), error.get("code", "N/A"))
+                    "   Error: {} (code {})".format(error.get("message", "Unknown"), error.get("code", "N/A"))
                 )
         elif state == "in_progress":
             console.print("[yellow]⏳ Media processing: %d%%[/yellow]" % progress)
@@ -1962,7 +2000,7 @@ def auth_status(as_json, as_yaml, as_toon):
         return
 
     console.print("[green]✅ Authenticated.[/green]")
-    console.print("👤 @%s" % profile.screen_name)
+    console.print(f"👤 @{profile.screen_name}")
 
 
 @auth.command(name="clear")
@@ -1987,7 +2025,7 @@ def auth_clear(as_json, as_yaml, as_toon):
         return
 
     if cleared:
-        console.print("[green]✅ Cleared environment variables: %s[/green]" % ", ".join(cleared))
+        console.print("[green]✅ Cleared environment variables: {}[/green]".format(", ".join(cleared)))
     else:
         console.print("[yellow]No environment variables to clear.[/yellow]")
     console.print(
@@ -2054,7 +2092,7 @@ def auth_login(auth_type, scope, as_json, as_yaml, as_toon):
     )
 
     try:
-        payload = {}  # type: Dict[str, Any]
+        payload = {}  # type: dict[str, Any]
         if auth_type == "oauth2":
             if not oauth2_id or not oauth2_secret:
                 raise click.UsageError(
@@ -2198,8 +2236,8 @@ def follow_user(screen_name, as_json, as_yaml, as_toon):
         as_json=as_json,
         as_yaml=as_yaml,
         operation=operation,
-        progress_lines=["👤 Looking up @%s..." % screen_name, "➕ Following @%s..." % screen_name],
-        success_lines=["[green]✅ Now following @%s[/green]" % screen_name],
+        progress_lines=[f"👤 Looking up @{screen_name}...", f"➕ Following @{screen_name}..."],
+        success_lines=[f"[green]✅ Now following @{screen_name}[/green]"],
         error_details={"action": "follow", "screenName": screen_name},
     )
 
@@ -2222,10 +2260,10 @@ def unfollow_user(screen_name, as_json, as_yaml, as_toon):
         as_yaml=as_yaml,
         operation=operation,
         progress_lines=[
-            "👤 Looking up @%s..." % screen_name,
-            "➖ Unfollowing @%s..." % screen_name,
+            f"👤 Looking up @{screen_name}...",
+            f"➖ Unfollowing @{screen_name}...",
         ],
-        success_lines=["[green]✅ Unfollowed @%s[/green]" % screen_name],
+        success_lines=[f"[green]✅ Unfollowed @{screen_name}[/green]"],
         error_details={"action": "unfollow", "screenName": screen_name},
     )
 
@@ -2343,7 +2381,7 @@ def session_install(ctx, shell, scope, as_json, as_yaml, as_toon):
         "fish": "~/.config/fish/config.fish",
     }
     hook_file = Path(hooks[shell or "bash"]).expanduser()
-    hook_line = f"twitter-lyr --format yaml --compact 2>/dev/null || true"
+    hook_line = "twitter-lyr --format yaml --compact 2>/dev/null || true"
 
     if hook_file.exists():
         content = hook_file.read_text()
@@ -2419,8 +2457,8 @@ def block_user(screen_name, as_json, as_yaml, as_toon):
         as_json=as_json,
         as_yaml=as_yaml,
         operation=operation,
-        progress_lines=["👤 Looking up @%s..." % screen_name, "🚫 Blocking @%s..." % screen_name],
-        success_lines=["[green]✅ Blocked @%s[/green]" % screen_name],
+        progress_lines=[f"👤 Looking up @{screen_name}...", f"🚫 Blocking @{screen_name}..."],
+        success_lines=[f"[green]✅ Blocked @{screen_name}[/green]"],
         error_details={"action": "block", "screenName": screen_name},
     )
 
@@ -2442,8 +2480,8 @@ def unblock_user(screen_name, as_json, as_yaml, as_toon):
         as_json=as_json,
         as_yaml=as_yaml,
         operation=operation,
-        progress_lines=["👤 Looking up @%s..." % screen_name, "🔓 Unblocking @%s..." % screen_name],
-        success_lines=["[green]✅ Unblocked @%s[/green]" % screen_name],
+        progress_lines=[f"👤 Looking up @{screen_name}...", f"🔓 Unblocking @{screen_name}..."],
+        success_lines=[f"[green]✅ Unblocked @{screen_name}[/green]"],
         error_details={"action": "unblock", "screenName": screen_name},
     )
 
@@ -2465,8 +2503,8 @@ def mute_user(screen_name, as_json, as_yaml, as_toon):
         as_json=as_json,
         as_yaml=as_yaml,
         operation=operation,
-        progress_lines=["👤 Looking up @%s..." % screen_name, "🔇 Muting @%s..." % screen_name],
-        success_lines=["[green]✅ Muted @%s[/green]" % screen_name],
+        progress_lines=[f"👤 Looking up @{screen_name}...", f"🔇 Muting @{screen_name}..."],
+        success_lines=[f"[green]✅ Muted @{screen_name}[/green]"],
         error_details={"action": "mute", "screenName": screen_name},
     )
 
@@ -2488,8 +2526,8 @@ def unmute_user(screen_name, as_json, as_yaml, as_toon):
         as_json=as_json,
         as_yaml=as_yaml,
         operation=operation,
-        progress_lines=["👤 Looking up @%s..." % screen_name, "🔊 Unmuting @%s..." % screen_name],
-        success_lines=["[green]✅ Unmuted @%s[/green]" % screen_name],
+        progress_lines=[f"👤 Looking up @{screen_name}...", f"🔊 Unmuting @{screen_name}..."],
+        success_lines=[f"[green]✅ Unmuted @{screen_name}[/green]"],
         error_details={"action": "unmute", "screenName": screen_name},
     )
 
@@ -2567,7 +2605,7 @@ def dm_messages(ctx, conversation_id, max_count, as_json, as_yaml, as_toon):
     try:
         client = _get_client(config, quiet=not rich_output)
         if rich_output:
-            console.print("💬 Fetching messages from conversation %s..." % conversation_id)
+            console.print(f"💬 Fetching messages from conversation {conversation_id}...")
         messages = client.fetch_dm_messages(conversation_id, max_count)
     except (TwitterError, RuntimeError) as exc:
         _exit_with_error(exc)
@@ -2621,7 +2659,7 @@ def dm_create(participants, as_json, as_yaml, as_toon):
         as_yaml=as_yaml,
         operation=operation,
         progress_lines=[
-            "💬 Creating DM conversation with %s..." % ", ".join("@" + s for s in screen_names)
+            "💬 Creating DM conversation with {}...".format(", ".join("@" + s for s in screen_names))
         ],
         success_lines=["[green]✅ DM conversation created![/green]"],
         error_details={"action": "create_dm", "participants": screen_names},
@@ -2648,7 +2686,7 @@ def dm_send(conversation_id, text, as_json, as_yaml, as_toon):
         as_json=as_json,
         as_yaml=as_yaml,
         operation=operation,
-        progress_lines=["💬 Sending DM to conversation %s..." % conversation_id],
+        progress_lines=[f"💬 Sending DM to conversation {conversation_id}..."],
         success_lines=["[green]✅ DM sent![/green]"],
         error_details={"action": "send_dm", "conversationId": conversation_id},
     )
@@ -2668,7 +2706,7 @@ def dm_mark_read(conversation_id, as_json, as_yaml, as_toon):
         as_json=as_json,
         as_yaml=as_yaml,
         operation=operation,
-        progress_lines=["💬 Marking conversation %s as read..." % conversation_id],
+        progress_lines=[f"💬 Marking conversation {conversation_id} as read..."],
         success_lines=["[green]✅ Conversation marked as read![/green]"],
         error_details={"action": "mark_dm_read", "conversationId": conversation_id},
     )
@@ -2688,7 +2726,7 @@ def dm_typing(conversation_id, as_json, as_yaml, as_toon):
         as_json=as_json,
         as_yaml=as_yaml,
         operation=operation,
-        progress_lines=["⌨️  Sending typing indicator to conversation %s..." % conversation_id],
+        progress_lines=[f"⌨️  Sending typing indicator to conversation {conversation_id}..."],
         success_lines=["[green]✅ Typing indicator sent![/green]"],
         error_details={"action": "dm_typing", "conversationId": conversation_id},
     )
@@ -2708,7 +2746,7 @@ def dm_rotate_keys(conversation_id, as_json, as_yaml, as_toon):
         as_json=as_json,
         as_yaml=as_yaml,
         operation=operation,
-        progress_lines=["🔐 Rotating encryption keys for conversation %s..." % conversation_id],
+        progress_lines=[f"🔐 Rotating encryption keys for conversation {conversation_id}..."],
         success_lines=["[green]✅ Encryption keys rotated![/green]"],
         error_details={"action": "dm_rotate_keys", "conversationId": conversation_id},
     )
@@ -2754,14 +2792,14 @@ def poll_create(question, options, duration, as_json, as_yaml, as_toon):
             "success": True,
             "action": "create_poll",
             "id": tweet_id,
-            "url": "https://x.com/i/status/%s" % tweet_id,
+            "url": f"https://x.com/i/status/{tweet_id}",
         }
 
     _run_write_command(
         as_json=as_json,
         as_yaml=as_yaml,
         operation=operation,
-        progress_lines=["📊 Creating poll: %s..." % question[:50]],
+        progress_lines=[f"📊 Creating poll: {question[:50]}..."],
         success_lines=["[green]✅ Poll created![/green]"],
         error_details={"action": "create_poll", "options": len(options)},
     )
@@ -2852,7 +2890,7 @@ def list_timeline_sub(
     config = load_config()
     rich_output = use_rich_output(as_json=as_json, as_yaml=as_yaml, compact=compact)
 
-    tweets = []  # type: List[Tweet]
+    tweets = []  # type: list[Tweet]
     next_cursor = None  # type: Optional[str]
 
     def _run():
@@ -2880,7 +2918,13 @@ def list_timeline_sub(
     filtered = _apply_filter(tweets, do_filter, config, rich_output=rich_output)
 
     if compact:
-        if ctx.obj.get("output_format") == "toon":
+        # Explicit --json/--yaml/--toon flags win over the global --format
+        # default ("toon") so `--json` in compact mode still emits JSON.
+        output_format = ctx.obj.get("output_format", "toon")
+        fmt = output_format if not (as_json or as_yaml or as_toon) else (
+            "json" if as_json else "yaml" if as_yaml else "toon"
+        )
+        if fmt == "toon":
             from .serialization import tweet_to_compact_dict
 
             emit_toon([tweet_to_compact_dict(t) for t in filtered])
@@ -2927,7 +2971,7 @@ def list_create(name, description, private, as_json, as_yaml, as_toon):
         as_json=as_json,
         as_yaml=as_yaml,
         operation=operation,
-        progress_lines=["📋 Creating list: %s..." % name],
+        progress_lines=[f"📋 Creating list: {name}..."],
         success_lines=["[green]✅ List created![/green]"],
         error_details={"action": "create_list", "name": name},
     )
@@ -2954,7 +2998,7 @@ def list_update(list_id, name, description, private, as_json, as_yaml, as_toon):
         as_json=as_json,
         as_yaml=as_yaml,
         operation=operation,
-        progress_lines=["📋 Updating list %s..." % list_id],
+        progress_lines=[f"📋 Updating list {list_id}..."],
         success_lines=["[green]✅ List updated![/green]"],
         error_details={"action": "update_list", "listId": list_id},
     )
@@ -2975,7 +3019,7 @@ def list_delete(list_id, as_json, as_yaml, as_toon):
         as_json=as_json,
         as_yaml=as_yaml,
         operation=operation,
-        progress_lines=["🗑️  Deleting list %s..." % list_id],
+        progress_lines=[f"🗑️  Deleting list {list_id}..."],
         success_lines=["[green]✅ List deleted![/green]"],
         error_details={"action": "delete_list", "listId": list_id},
     )
@@ -3004,8 +3048,8 @@ def list_add_member(list_id, screen_name, as_json, as_yaml, as_toon):
         as_json=as_json,
         as_yaml=as_yaml,
         operation=operation,
-        progress_lines=["👤 Looking up @%s..." % screen_name, "📋 Adding to list %s..." % list_id],
-        success_lines=["[green]✅ Added @%s to list %s[/green]" % (screen_name, list_id)],
+        progress_lines=[f"👤 Looking up @{screen_name}...", f"📋 Adding to list {list_id}..."],
+        success_lines=[f"[green]✅ Added @{screen_name} to list {list_id}[/green]"],
         error_details={"action": "add_list_member", "listId": list_id, "screenName": screen_name},
     )
 
@@ -3034,10 +3078,10 @@ def list_remove_member(list_id, screen_name, as_json, as_yaml, as_toon):
         as_yaml=as_yaml,
         operation=operation,
         progress_lines=[
-            "👤 Looking up @%s..." % screen_name,
-            "📋 Removing from list %s..." % list_id,
+            f"👤 Looking up @{screen_name}...",
+            f"📋 Removing from list {list_id}...",
         ],
-        success_lines=["[green]✅ Removed @%s from list %s[/green]" % (screen_name, list_id)],
+        success_lines=[f"[green]✅ Removed @{screen_name} from list {list_id}[/green]"],
         error_details={
             "action": "remove_list_member",
             "listId": list_id,
@@ -3059,7 +3103,7 @@ def list_members(ctx, list_id, max_count, as_json, as_yaml, as_toon):
     try:
         client = _get_client(config, quiet=not rich_output)
         if rich_output:
-            console.print("📋 Fetching members of list %s..." % list_id)
+            console.print(f"📋 Fetching members of list {list_id}...")
         members = client.fetch_list_members(list_id, max_count)
     except (TwitterError, RuntimeError) as exc:
         _exit_with_error(exc)
@@ -3197,7 +3241,7 @@ def community_join(community_id, as_json, as_yaml, as_toon):
         as_json=as_json,
         as_yaml=as_yaml,
         operation=operation,
-        progress_lines=["🏘️  Joining community %s..." % community_id],
+        progress_lines=[f"🏘️  Joining community {community_id}..."],
         success_lines=["[green]✅ Joined community![/green]"],
         error_details={"action": "join_community", "communityId": community_id},
     )
@@ -3217,7 +3261,7 @@ def community_leave(community_id, as_json, as_yaml, as_toon):
         as_json=as_json,
         as_yaml=as_yaml,
         operation=operation,
-        progress_lines=["🏘️  Leaving community %s..." % community_id],
+        progress_lines=[f"🏘️  Leaving community {community_id}..."],
         success_lines=["[green]✅ Left community![/green]"],
         error_details={"action": "leave_community", "communityId": community_id},
     )
@@ -3236,7 +3280,7 @@ def community_tweets(ctx, community_id, max_count, as_json, as_yaml, as_toon):
     try:
         client = _get_client(config, quiet=not rich_output)
         if rich_output:
-            console.print("🏘️  Fetching tweets from community %s..." % community_id)
+            console.print(f"🏘️  Fetching tweets from community {community_id}...")
         tweets = client.fetch_community_tweets(community_id, max_count)
     except (TwitterError, RuntimeError) as exc:
         _exit_with_error(exc)

@@ -4,18 +4,14 @@ Twitter/X-specific ObscuraCookieManager integration.
 
 from __future__ import annotations
 
-import asyncio
 import logging
 from pathlib import Path
-from typing import Any, Optional
 
 from obscura_core import (
-    ObscuraCookieManager,
-    FileCookieStorage,
     BrowserCookieExtractor,
-    CookieSource,
     CookieValidationResult,
-    ReLoginRequiredError,
+    FileCookieStorage,
+    ObscuraCookieManager,
 )
 
 logger = logging.getLogger(__name__)
@@ -50,7 +46,7 @@ class TwitterObscuraManager:
     """Twitter/X-specific wrapper around ObscuraCookieManager."""
 
     def __init__(self):
-        self._manager: Optional[ObscuraCookieManager] = None
+        self._manager: ObscuraCookieManager | None = None
         self._validator = TwitterCookieValidator()
 
     def _get_storage(self) -> FileCookieStorage:
@@ -103,7 +99,7 @@ class TwitterObscuraManager:
 
 
 # Global instance
-_twitter_obscura_manager: Optional[TwitterObscuraManager] = None
+_twitter_obscura_manager: TwitterObscuraManager | None = None
 
 
 def get_twitter_obscura_manager() -> TwitterObscuraManager:

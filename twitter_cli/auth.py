@@ -29,7 +29,7 @@ _TWITTER_DOMAINS = {"x.com", "twitter.com", ".x.com", ".twitter.com"}
 
 def _is_twitter_domain(domain: str) -> bool:
     return (
-        domain in _TWITTER_DOMAINS or domain.endswith(".x.com") or domain.endswith(".twitter.com")
+        domain in _TWITTER_DOMAINS or domain.endswith((".x.com", ".twitter.com"))
     )
 
 
@@ -118,10 +118,10 @@ def verify_cookies(auth_token: str, ct0: str, cookie_string: str | None = None) 
     ]
 
     # Use full cookie string if available, otherwise minimal
-    cookie_header = cookie_string or "auth_token=%s; ct0=%s" % (auth_token, ct0)
+    cookie_header = cookie_string or f"auth_token={auth_token}; ct0={ct0}"
 
     headers = {
-        "Authorization": "Bearer %s" % BEARER_TOKEN,
+        "Authorization": f"Bearer {BEARER_TOKEN}",
         "Cookie": cookie_header,
         "X-Csrf-Token": ct0,
         "X-Twitter-Active-User": "yes",
@@ -149,7 +149,7 @@ def verify_cookies(auth_token: str, ct0: str, cookie_string: str | None = None) 
                 )
             if resp.status_code == 200:
                 data = resp.json()
-                attempts.append("%s=200" % endpoint)
+                attempts.append(f"{endpoint}=200")
                 logger.debug("Cookie verification succeeded via %s", endpoint)
                 return {"screen_name": data.get("screen_name", "")}
             attempts.append("%s=%d" % (endpoint, resp.status_code))
@@ -160,7 +160,7 @@ def verify_cookies(auth_token: str, ct0: str, cookie_string: str | None = None) 
         except RuntimeError:
             raise
         except Exception as e:
-            attempts.append("%s=%s" % (endpoint, type(e).__name__))
+            attempts.append(f"{endpoint}={type(e).__name__}")
             logger.debug("Verification endpoint %s failed: %s", url, e)
             continue
 
@@ -190,7 +190,7 @@ def _extract_cookies_from_jar(jar: Any, source: str = "unknown") -> dict[str, st
     if "auth_token" in result and "ct0" in result:
         cookies = {"auth_token": result["auth_token"], "ct0": result["ct0"]}
         if all_cookies:
-            cookies["cookie_string"] = "; ".join("%s=%s" % (k, v) for k, v in all_cookies.items())
+            cookies["cookie_string"] = "; ".join(f"{k}={v}" for k, v in all_cookies.items())
             logger.info("Extracted %d total cookies for full browser fingerprint", len(all_cookies))
         return cookies
     logger.debug(
@@ -318,14 +318,14 @@ def _extract_in_process() -> tuple[dict[str, str] | None, list[str]]:
                     jar = fn()
                 except Exception as e:
                     logger.debug("%s in-process extraction failed: %s", name, e)
-                    attempts.append("%s=%s" % (name, type(e).__name__))
-                    diagnostics.append("%s: %s" % (name, e))
+                    attempts.append(f"{name}={type(e).__name__}")
+                    diagnostics.append(f"{name}: {e}")
                     continue
-                cookies = _extract_cookies_from_jar(jar, source="%s(in-process)" % name)
+                cookies = _extract_cookies_from_jar(jar, source=f"{name}(in-process)")
                 if cookies:
                     logger.info("Found cookies in %s (in-process, default)", name)
                     return cookies, diagnostics
-                attempts.append("%s=no-cookies" % name)
+                attempts.append(f"{name}=no-cookies")
                 continue
 
             for cookie_file in cookie_files:
@@ -334,30 +334,30 @@ def _extract_in_process() -> tuple[dict[str, str] | None, list[str]]:
                     jar = fn(cookie_file=cookie_file)
                 except Exception as e:
                     logger.debug("%s[%s] in-process extraction failed: %s", name, profile_name, e)
-                    attempts.append("%s[%s]=%s" % (name, profile_name, type(e).__name__))
-                    diagnostics.append("%s[%s]: %s" % (name, profile_name, e))
+                    attempts.append(f"{name}[{profile_name}]={type(e).__name__}")
+                    diagnostics.append(f"{name}[{profile_name}]: {e}")
                     continue
                 cookies = _extract_cookies_from_jar(
-                    jar, source="%s[%s](in-process)" % (name, profile_name)
+                    jar, source=f"{name}[{profile_name}](in-process)"
                 )
                 if cookies:
                     logger.info("Found cookies in %s profile '%s' (in-process)", name, profile_name)
                     return cookies, diagnostics
-                attempts.append("%s[%s]=no-cookies" % (name, profile_name))
+                attempts.append(f"{name}[{profile_name}]=no-cookies")
         else:
             # Non-Chromium (Firefox): use default behavior
             try:
                 jar = fn()
             except Exception as e:
                 logger.debug("%s in-process extraction failed: %s", name, e)
-                attempts.append("%s=%s" % (name, type(e).__name__))
-                diagnostics.append("%s: %s" % (name, e))
+                attempts.append(f"{name}={type(e).__name__}")
+                diagnostics.append(f"{name}: {e}")
                 continue
-            cookies = _extract_cookies_from_jar(jar, source="%s(in-process)" % name)
+            cookies = _extract_cookies_from_jar(jar, source=f"{name}(in-process)")
             if cookies:
                 logger.info("Found cookies in %s (in-process)", name)
                 return cookies, diagnostics
-            attempts.append("%s=no-cookies" % name)
+            attempts.append(f"{name}=no-cookies")
 
     if attempts:
         logger.debug("In-process extraction attempts: %s", ", ".join(attempts))
@@ -568,7 +568,7 @@ sys.exit(1)
         cookies: dict[str, str] = {"auth_token": data["auth_token"], "ct0": data["ct0"]}
         all_cookies = data.get("all_cookies", {})
         if all_cookies:
-            cookie_str = "; ".join("%s=%s" % (k, v) for k, v in all_cookies.items())
+            cookie_str = "; ".join(f"{k}={v}" for k, v in all_cookies.items())
             cookies["cookie_string"] = cookie_str
             logger.info("Extracted %d total cookies for full browser fingerprint", len(all_cookies))
         return cookies, diagnostics
@@ -615,13 +615,14 @@ def get_cookies() -> dict[str, str]:
     cookies = load_from_env()
     if cookies:
         logger.info("Loaded cookies from environment variables")
-        return cookies
+        # Fall through to verification below (same contract as browser cookies)
 
     # 2. Try obscura-daemon if enabled
     use_daemon = os.getenv("TWITTER_USE_DAEMON", "true").lower() in ("1", "true", "yes", "on")
-    if use_daemon:
+    if use_daemon and not cookies:
         try:
             import asyncio
+
             from .obscura_daemon_integration import get_valid_twitter_cookies_from_daemon
 
             result = asyncio.run(get_valid_twitter_cookies_from_daemon())
@@ -638,8 +639,9 @@ def get_cookies() -> dict[str, str]:
             )
 
     # 3. Try browser extraction (auto-detect)
-    logger.debug("Attempting browser cookie extraction")
-    cookies, diagnostics = extract_from_browser()
+    if not cookies:
+        logger.debug("Attempting browser cookie extraction")
+        cookies, diagnostics = extract_from_browser()
 
     if not cookies:
         lines = ["No Twitter cookies found."]

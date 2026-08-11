@@ -10,10 +10,10 @@ import json
 import logging
 import re
 import urllib.parse
-from typing import TYPE_CHECKING
-
-if TYPE_CHECKING:
-    from typing import Any, Dict, Optional  # noqa: F401
+from typing import (  # noqa: F401 (used in # type: comments)  # noqa: F401 (used in # type: comments)
+    Any,
+    Optional,
+)
 
 from .exceptions import QueryIdError
 
@@ -131,7 +131,7 @@ _bundles_scanned = False
 
 
 def _build_graphql_url(query_id, operation_name, variables, features, field_toggles=None):
-    # type: (str, str, Dict[str, Any], Dict[str, Any], Optional[Dict[str, Any]]) -> str
+    # type: (str, str, dict[str, Any], dict[str, Any], Optional[dict[str, Any]]) -> str
     """Build GraphQL GET URL with encoded variables/features/fieldToggles.
 
     Only includes True-valued feature flags in the URL to avoid 414 URI Too Long.
@@ -139,16 +139,16 @@ def _build_graphql_url(query_id, operation_name, variables, features, field_togg
     """
     # Compact features: omit False values to keep URL under server limits
     compact_features = {k: v for k, v in features.items() if v is not False}
-    url = "https://x.com/i/api/graphql/%s/%s?variables=%s&features=%s" % (
+    url = "https://x.com/i/api/graphql/{}/{}?variables={}&features={}".format(
         query_id,
         operation_name,
         urllib.parse.quote(json.dumps(variables, separators=(",", ":"))),
         urllib.parse.quote(json.dumps(compact_features, separators=(",", ":"))),
     )
     if field_toggles:
-        url += "&fieldToggles=%s" % urllib.parse.quote(
+        url += "&fieldToggles={}".format(urllib.parse.quote(
             json.dumps(field_toggles, separators=(",", ":"))
-        )
+        ))
     return url
 
 
@@ -256,11 +256,10 @@ def _resolve_query_id(operation_name, prefer_fallback=True, url_fetch_fn=None):
 
     if operation_name in UNSUPPORTED_FABRICATED_OPS:
         raise QueryIdError(
-            'DM operation "%s" is disabled: Twitter replaced plaintext DM '
+            f'DM operation "{operation_name}" is disabled: Twitter replaced plaintext DM '
             "with the E2E-encrypted XChat protocol, and these legacy DM ops "
             "no longer exist at the API layer (their IDs are unresolvable). "
             "Real DM requires the XChat enrollment+crypto handshake."
-            % operation_name
         )
 
     fallback = FALLBACK_QUERY_IDS.get(operation_name)
@@ -283,4 +282,4 @@ def _resolve_query_id(operation_name, prefer_fallback=True, url_fetch_fn=None):
         _cached_query_ids[operation_name] = fallback
         return fallback
 
-    raise QueryIdError('Cannot resolve queryId for "%s"' % operation_name)
+    raise QueryIdError(f'Cannot resolve queryId for "{operation_name}"')

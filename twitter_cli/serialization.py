@@ -3,7 +3,10 @@
 from __future__ import annotations
 
 import json
-from typing import Any
+from typing import (  # noqa: F401 (used in # type: comments)  # noqa: F401 (used in # type: comments)
+    Any,
+    Optional,
+)
 
 from .models import (
     Author,
@@ -167,12 +170,12 @@ def tweet_to_compact_dict(tweet: Tweet) -> dict[str, Any]:
     # Short time: "Mar 07 05:51" from "Sat Mar 07 05:51:02 +0000 2026"
     parts = tweet.created_at.split()
     if len(parts) >= 4:
-        time_str = "%s %s %s" % (parts[1], parts[2], parts[3][:5])
+        time_str = f"{parts[1]} {parts[2]} {parts[3][:5]}"
     else:
         time_str = tweet.created_at
     return {
         "id": tweet.id,
-        "author": "@%s" % tweet.author.screen_name,
+        "author": f"@{tweet.author.screen_name}",
         "text": text,
         "likes": tweet.metrics.likes,
         "rts": tweet.metrics.retweets,
@@ -180,7 +183,7 @@ def tweet_to_compact_dict(tweet: Tweet) -> dict[str, Any]:
     }
 
 
-def tweets_to_compact_json(tweets: list[Tweet], fields: Optional[str] = None) -> str:
+def tweets_to_compact_json(tweets: list[Tweet], fields: str | None = None) -> str:
     """Serialize Tweet objects to compact JSON (minimal fields for LLM/pipe usage)."""
     return json.dumps(
         [tweet_to_compact_dict(tweet) for tweet in tweets],
@@ -189,7 +192,7 @@ def tweets_to_compact_json(tweets: list[Tweet], fields: Optional[str] = None) ->
     )
 
 
-def tweets_to_data(tweets: list[Tweet], fields: Optional[str] = None) -> list[dict[str, Any]]:
+def tweets_to_data(tweets: list[Tweet], fields: str | None = None) -> list[dict[str, Any]]:
     """Convert tweets to list of dicts for structured output."""
     return [tweet_to_dict(t) for t in tweets]
 
@@ -291,7 +294,7 @@ def dm_message_to_dict(msg: dict[str, Any]) -> dict[str, Any]:
 
 
 def lists_to_data(lists: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    return [list_to_dict(l) for l in lists]
+    return [list_to_dict(item) for item in lists]
 
 
 def list_to_dict(lst: dict[str, Any]) -> dict[str, Any]:

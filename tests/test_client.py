@@ -264,10 +264,10 @@ class TestUpdateFeaturesFromHtml:
         original = dict(FEATURES)
         try:
             # Use a key that exists in FEATURES
-            existing_key = list(FEATURES.keys())[0]
+            existing_key = next(iter(FEATURES.keys()))
             original_value = FEATURES[existing_key]
             opposite = "false" if original_value else "true"
-            html = '"%s":{"value":%s}' % (existing_key, opposite)
+            html = f'"{existing_key}":{{"value":{opposite}}}'
             _update_features_from_html(html)
             assert FEATURES[existing_key] != original_value
         finally:

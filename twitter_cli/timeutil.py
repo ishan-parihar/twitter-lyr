@@ -7,7 +7,7 @@ into human-friendly local time and relative time strings.
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 logger = logging.getLogger(__name__)
 
@@ -46,7 +46,7 @@ def format_relative_time(created_at: str) -> str:
     dt = _parse_twitter_time(created_at)
     if dt is None:
         return created_at
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     delta = now - dt
     seconds = int(delta.total_seconds())
 

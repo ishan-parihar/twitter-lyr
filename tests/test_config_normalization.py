@@ -8,18 +8,7 @@ from twitter_cli.config import load_config
 def test_filter_normalization_for_invalid_values(tmp_path: Path) -> None:
     config_file = tmp_path / "config.yaml"
     config_file.write_text(
-        "\n".join([
-            "fetch:",
-            "  count: -5",
-            "filter:",
-            "  mode: unknown",
-            "  topN: -1",
-            "  minScore: abc",
-            "  lang: zh",
-            "  weights:",
-            "    likes: bad",
-            "    retweets: 4",
-        ]),
+        "fetch:\n  count: -5\nfilter:\n  mode: unknown\n  topN: -1\n  minScore: abc\n  lang: zh\n  weights:\n    likes: bad\n    retweets: 4",
         encoding="utf-8",
     )
 
@@ -41,13 +30,7 @@ def test_filter_normalization_for_invalid_values(tmp_path: Path) -> None:
 def test_rate_limit_normalization(tmp_path: Path) -> None:
     config_file = tmp_path / "config.yaml"
     config_file.write_text(
-        "\n".join([
-            "rateLimit:",
-            "  requestDelay: -2",
-            "  maxRetries: bad",
-            "  retryBaseDelay: 0.1",
-            "  maxCount: 0",
-        ]),
+        "rateLimit:\n  requestDelay: -2\n  maxRetries: bad\n  retryBaseDelay: 0.1\n  maxCount: 0",
         encoding="utf-8",
     )
 

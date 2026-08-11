@@ -6,9 +6,8 @@ from __future__ import annotations
 
 import logging
 import os
-from typing import Optional
 
-from obscura_core import ObscuraPlugin, CookieValidationResult
+from obscura_core import CookieValidationResult, ObscuraPlugin
 
 logger = logging.getLogger(__name__)
 
@@ -21,7 +20,7 @@ class TwitterDaemonManager:
 
     def __init__(self, daemon_url: str = "http://127.0.0.1:9999"):
         self.daemon_url = daemon_url
-        self._plugin: Optional[ObscuraPlugin] = None
+        self._plugin: ObscuraPlugin | None = None
         self._use_daemon = os.getenv("TWITTER_USE_DAEMON", "true").lower() in (
             "1",
             "true",
@@ -95,7 +94,7 @@ class TwitterDaemonManager:
 
 
 # Global instance
-_twitter_daemon_manager: Optional[TwitterDaemonManager] = None
+_twitter_daemon_manager: TwitterDaemonManager | None = None
 
 
 def get_twitter_daemon_manager(daemon_url: str = "http://127.0.0.1:9999") -> TwitterDaemonManager:

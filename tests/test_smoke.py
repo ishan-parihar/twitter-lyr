@@ -25,8 +25,11 @@ runner = CliRunner()
 def _invoke(*args: str):
     """Run a CLI command with --yaml and return parsed payload."""
     result = runner.invoke(cli, [*args, "--yaml"])
-    if result.output:
-        payload = yaml.safe_load(result.output)
+    # click >= 8.4 mixes stderr into `result.output`, so parse only the clean
+    # stdout stream (log/daemon diagnostics live on stderr).
+    stdout = result.stdout
+    if stdout:
+        payload = yaml.safe_load(stdout)
     else:
         payload = None
     return result, payload
