@@ -5,7 +5,7 @@
 [![CI](https://github.com/ishan-parihar/twitter-lyr/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/ishan-parihar/twitter-lyr/actions/workflows/ci.yml)
 [![PyPI version](https://badge.fury.io/py/twitter-lyr.svg)](https://pypi.org/project/twitter-lyr/)
 [![Python](https://img.shields.io/badge/python-%3E%3D3.10-blue.svg)](https://pypi.org/project/twitter-lyr/)
-![LOC](https://img.shields.io/badge/LOC-13.1K-informational?style=flat-square)
+![LOC](https://img.shields.io/badge/LOC-13.4K-informational?style=flat-square)
 
 ![twitter-lyr hero](assets/readme/hero.svg)
 
