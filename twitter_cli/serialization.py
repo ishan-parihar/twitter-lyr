@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-from typing import (  # noqa: F401 (used in # type: comments)  # noqa: F401 (used in # type: comments)
+from typing import (  # noqa: F401 (used in # type: comments)
     Any,
     Optional,
 )

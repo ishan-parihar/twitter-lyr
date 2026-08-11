@@ -18,7 +18,7 @@ import time
 import urllib.parse
 from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import (  # noqa: F401 (used in # type: comments)  # noqa: F401 (used in # type: comments)
+from typing import (  # noqa: F401 (used in # type: comments)
     Any,
     Optional,
 )

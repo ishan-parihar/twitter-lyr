@@ -10,7 +10,7 @@ import json
 import logging
 import re
 import urllib.parse
-from typing import (  # noqa: F401 (used in # type: comments)  # noqa: F401 (used in # type: comments)
+from typing import (  # noqa: F401 (used in # type: comments)
     Any,
     Optional,
 )
