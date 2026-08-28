@@ -1684,6 +1684,9 @@ class TwitterClient:
             # a different TLS fingerprint on the same IP — a detection vector.
             cffi_session = _get_cffi_session()
             ct_headers = _gen_ct_headers()
+            # Include auth cookies to get logged-in homepage (which contains ondemand.s)
+            if self._cookie_string:
+                ct_headers["Cookie"] = self._cookie_string
             home_page = cffi_session.get(
                 "https://x.com",
                 headers=ct_headers,

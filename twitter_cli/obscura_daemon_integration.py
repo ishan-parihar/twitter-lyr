@@ -7,7 +7,7 @@ from __future__ import annotations
 import logging
 import os
 
-from obscura_core import CookieValidationResult, ObscuraPlugin
+from obscura_core import CookieSource, CookieValidationResult, ObscuraPlugin
 
 logger = logging.getLogger(__name__)
 
@@ -57,7 +57,7 @@ class TwitterDaemonManager:
                 logger.warning("No cookies found in daemon cache for twitter")
                 return CookieValidationResult(
                     valid=False,
-                    source="daemon",
+                    source=CookieSource.DAEMON,
                     cookies={},
                     error="No cookies found in daemon cache",
                 )
@@ -68,15 +68,19 @@ class TwitterDaemonManager:
                     logger.debug(f"Required cookie missing: {cookie}")
                     return CookieValidationResult(
                         valid=False,
-                        source="daemon",
+                        source=CookieSource.DAEMON,
                         cookies=cookies,
                         error=f"Required cookie missing: {cookie}",
                     )
 
+            # Build cookie_string if not present (needed for ClientTransaction)
+            if "cookie_string" not in cookies:
+                cookies["cookie_string"] = "; ".join(f"{k}={v}" for k, v in cookies.items())
+
             return CookieValidationResult(
                 valid=True,
                 cookies=cookies,
-                source="daemon",
+                source=CookieSource.DAEMON,
             )
         except Exception as e:
             logger.error(f"Error getting cookies from daemon: {e}")
