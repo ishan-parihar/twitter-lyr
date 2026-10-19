@@ -9,5 +9,5 @@
 | [`CLOSED.md`](kb/CLOSED.md) | LEDGER | CLOSED — tried and rejected | — |
 | [`WORKLOG.md`](kb/WORKLOG.md) | LEDGER | Worklog | — |
 | [`feed.md`](kb/feed.md) | LEDGER | Agent feed | — |
-| [`SCHEMA.md`](SCHEMA.md) | Structured Output Schema — twitter-lyr uses a shared agent-friendly envelope for machine-readable output.… | Structured Output Schema — twitter-lyr uses a shared agent-friendly envelope for machine-readable output.… | — |
+| [`SCHEMA.md`](SCHEMA.md) | LIVE | Structured Output Schema — twitter-lyr uses a shared agent-friendly envelope for machine-readable output.… | — |
 | [`RECORDS.md`](RECORDS.md) | LIVE | Records — decisions (AD) and regressions (RG) — Generated zones below are written by genome rec emit; never hand-edit them. Topic → governing record… | — |
