@@ -67,7 +67,7 @@ twitter feed --filter
 - `--full-text`: disable tweet text truncation in rich table output
 - Structured output: export any data as YAML or JSON for scripting and AI agent integration
 - Optional scoring filter: rank tweets by engagement weights
-- Structured output contract: [SCHEMA.md](./SCHEMA.md)
+- Structured output contract: [SCHEMA.md](docs/SCHEMA.md)
 
 > **AI Agent Tip:** Prefer `--yaml` for structured output unless a strict JSON parser is required. Non-TTY stdout defaults to YAML automatically. Use `--max` to limit results.
 

@@ -112,7 +112,7 @@ twitter feed --yaml
 twitter feed --json | jq '.[0].text'
 ```
 
-All machine-readable output uses the envelope documented in [SCHEMA.md](./SCHEMA.md).
+All machine-readable output uses the envelope documented in [SCHEMA.md](docs/SCHEMA.md).
 Tweet and user payloads now live under `.data`.
 
 ### Full text: `--full-text` flag (rich tables only)
