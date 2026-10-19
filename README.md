@@ -415,6 +415,8 @@ uv run pytest tests/test_cli.py::test_feed_command -v
 
 CI validates: `ruff check` + `mypy` + `pytest` on Python 3.10, 3.11, 3.12.
 
+- [Page index](docs/PAGE-INDEX.md) — every active doc and the question it owns.
+
 ---
 
 ## Architecture
