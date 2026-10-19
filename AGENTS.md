@@ -31,6 +31,7 @@ uv run pytest tests/test_cli.py::test_feed_command -v
 uv run pytest -k "test_parse" -v
 ```
 
+*(Commands reviewed 2026-10-19: the section above still holds the commands that build and test this repo.)*
 ## Code Style
 
 - **Line length**: 100 characters
