@@ -27,9 +27,16 @@ pipx install twitter-lyr
 
 Upgrade:
 ```bash
+twitter-lyr update --check
+twitter-lyr update
+# `twitter-lyr upgrade` is an alias for `twitter-lyr update`
 uv tool upgrade twitter-lyr
 # or: pipx upgrade twitter-lyr
 ```
+
+The CLI delegates updates to the detected `uv`, `pipx`, or supported `pip`
+installation. Editable and unrecognized installs are left unchanged with a
+reinstall instruction.
 
 > **Tip:** Upgrade regularly to avoid unexpected errors from Twitter API changes.
 

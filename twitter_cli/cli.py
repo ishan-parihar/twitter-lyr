@@ -858,6 +858,18 @@ def feed_cmd(
     console.print()
 
 
+@cli.command("update")
+@click.option("--check", is_flag=True, help="Check for an update without installing")
+@click.option("--json", "as_json", is_flag=True, help="Print the result as JSON")
+def update_command(check: bool, as_json: bool) -> None:
+    """Update twitter-lyr through its owning package manager."""
+    from .updater import run_update
+
+    args = (["--check"] if check else []) + (["--json"] if as_json else [])
+    raise click.exceptions.Exit(
+        run_update(args, application="twitter-lyr", package="twitter-lyr")
+    )
+cli.add_command(update_command, "upgrade")
 @cli.command()
 @click.option(
     "--max", "-n", "max_count", type=int, default=None, help="Max number of tweets to fetch."
